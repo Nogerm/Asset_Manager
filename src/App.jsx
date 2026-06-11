@@ -16,25 +16,35 @@ function App() {
 
   // 初始化 LIFF 與取得初始資料
   useEffect(() => {
-    const initLiff = async () => {
+    const initApp = async () => {
+      setLoading(true);
       try {
-        await liff.init({ liffId: LIFF_ID });
-        if (liff.isLoggedIn()) {
-          const profile = await liff.getProfile();
-          setUserProfile(profile);
-        } else {
-          liff.login();
-        }
+        // 並行執行 LIFF 初始化與資料取得
+        const [liffResult, itemsRes, catsRes] = await Promise.allSettled([
+          liff.init({ liffId: LIFF_ID }).then(async () => {
+            if (liff.isLoggedIn()) {
+              return await liff.getProfile();
+            } else {
+              liff.login();
+              return null;
+            }
+          }),
+          fetch(`${GAS_URL}?action=getItems`).then(res => res.json()),
+          fetch(`${GAS_URL}?action=getCategories`).then(res => res.json())
+        ]);
+
+        if (liffResult.status === 'fulfilled') setUserProfile(liffResult.value);
+        if (itemsRes.status === 'fulfilled' && itemsRes.value.success) setItems(itemsRes.value.data);
+        if (catsRes.status === 'fulfilled' && catsRes.value.success) setCategories(catsRes.value.data);
+
       } catch (err) {
-        console.error("LIFF 載入失敗", err);
+        console.error("初始化失敗", err);
       } finally {
         setLoading(false);
       }
     };
 
-    initLiff();
-    fetchItems();
-    fetchCategories();
+    initApp();
   }, []);
 
   const fetchItems = async () => {
@@ -51,10 +61,21 @@ function App() {
     try {
       const res = await fetch(`${GAS_URL}?action=getCategories`);
       const json = await res.json();
-      if (json.success) setCategories(json.data);
+      if (json.success) {
+        console.log("Categories fetched:", json.data);
+        setCategories(json.data);
+      }
     } catch (err) {
       console.error("取得分類失敗", err);
     }
+  };
+
+  // 通用 Select 樣式
+  const selectStyle = {
+    backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236b7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")',
+    backgroundSize: '1.25em',
+    backgroundPosition: 'right 0.75rem center',
+    backgroundRepeat: 'no-repeat'
   };
 
   const handleAddCategory = async () => {
@@ -257,10 +278,11 @@ function App() {
                         value={newItem.category}
                         onChange={(e) => setNewItem({...newItem, category: e.target.value})}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
+                        style={selectStyle}
                       >
                         <option value="">請選擇分類</option>
                         {categories.map(cat => (
-                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                          <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
                         ))}
                       </select>
                     </div>
@@ -342,12 +364,12 @@ function App() {
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none appearance-none bg-no-repeat bg-right"
-                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236b7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundSize: '1.5em', backgroundPosition: 'right 0.5rem center' }}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none appearance-none bg-white"
+                  style={selectStyle}
                 >
                   <option value="">所有分類</option>
                   {categories.map(cat => (
-                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                    <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
                   ))}
                 </select>
               </div>
