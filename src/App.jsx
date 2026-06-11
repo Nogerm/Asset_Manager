@@ -34,8 +34,14 @@ function App() {
         ]);
 
         if (liffResult.status === 'fulfilled') setUserProfile(liffResult.value);
-        if (itemsRes.status === 'fulfilled' && itemsRes.value.success) setItems(itemsRes.value.data);
-        if (catsRes.status === 'fulfilled' && catsRes.value.success) setCategories(catsRes.value.data);
+        if (itemsRes.status === 'fulfilled' && itemsRes.value.success) {
+          console.log("Items loaded:", itemsRes.value.data);
+          setItems(itemsRes.value.data);
+        }
+        if (catsRes.status === 'fulfilled' && catsRes.value.success) {
+          console.log("Categories loaded:", catsRes.value.data);
+          setCategories(catsRes.value.data);
+        }
 
       } catch (err) {
         console.error("初始化失敗", err);
@@ -281,9 +287,10 @@ function App() {
                         style={selectStyle}
                       >
                         <option value="">請選擇分類</option>
-                        {categories.map(cat => (
-                          <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
-                        ))}
+                        {categories.map((cat, idx) => {
+                          const label = cat.name || cat.Name || Object.values(cat)[1] || "未命名";
+                          return <option key={cat.id || idx} value={label}>{label}</option>;
+                        })}
                       </select>
                     </div>
                     <div>
@@ -368,9 +375,10 @@ function App() {
                   style={selectStyle}
                 >
                   <option value="">所有分類</option>
-                  {categories.map(cat => (
-                    <option key={cat.id || cat.name} value={cat.name}>{cat.name}</option>
-                  ))}
+                  {categories.map((cat, idx) => {
+                    const label = cat.name || cat.Name || Object.values(cat)[1] || "未命名";
+                    return <option key={cat.id || idx} value={label}>{label}</option>;
+                  })}
                 </select>
               </div>
             </div>
@@ -380,64 +388,70 @@ function App() {
         {/* 物品清單內容 */}
         {currentTab === 'items' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map(item => (
-              <div key={item.id} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
-                <div className="p-5 flex-grow">
-                  <div className="flex justify-between items-start mb-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === '使用中' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${item.status === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                      {item.status}
-                    </span>
-                    <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">
-                      {item.category}
-                    </span>
+            {filteredItems.map((item, idx) => {
+              const itemName = item.name || item.Name || Object.values(item)[1] || "未命名物品";
+              const itemCat = item.category || item.Category || Object.values(item)[2] || "未分類";
+              const itemStatus = item.status || item.Status || Object.values(item)[4] || "未知狀態";
+              
+              return (
+                <div key={item.id || idx} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
+                  <div className="p-5 flex-grow">
+                    <div className="flex justify-between items-start mb-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${itemStatus === '使用中' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                        {itemStatus}
+                      </span>
+                      <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">
+                        {itemCat}
+                      </span>
+                    </div>
+
+                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">{itemName}</h3>
+
+                    <div className="space-y-2 mt-4 text-sm text-gray-600">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">購買日期</span>
+                        <span className="font-medium">{formatDate(item.purchase_date || item.PurchaseDate)}</span>
+                      </div>
+                      {itemStatus === '使用中' ? (
+                        <div className="flex justify-between">
+                          <span className="text-gray-400">已使用</span>
+                          <span className="font-bold text-blue-600">{calculateDuration(item.purchase_date || item.PurchaseDate)}</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 pt-1 border-t border-gray-50">
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-400">使用壽命</span>
+                            <span className="font-medium text-gray-700">{calculateDuration(item.purchase_date || item.PurchaseDate, item.end_date || item.EndDate)}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-red-400">停用日期</span>
+                            <span className="text-red-500 font-medium">{formatDate(item.end_date || item.EndDate)}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">{item.name}</h3>
-
-                  <div className="space-y-2 mt-4 text-sm text-gray-600">
-                    <div className="flex justify-between">
-                      <span className="text-gray-400">購買日期</span>
-                      <span className="font-medium">{formatDate(item.purchase_date)}</span>
-                    </div>
-                    {item.status === '使用中' ? (
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">已使用</span>
-                        <span className="font-bold text-blue-600">{calculateDuration(item.purchase_date)}</span>
-                      </div>
-                    ) : (
-                      <div className="space-y-1 pt-1 border-t border-gray-50">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-gray-400">使用壽命</span>
-                          <span className="font-medium text-gray-700">{calculateDuration(item.purchase_date, item.end_date)}</span>
-                        </div>
-                        <div className="flex justify-between text-xs">
-                          <span className="text-red-400">停用日期</span>
-                          <span className="text-red-500 font-medium">{formatDate(item.end_date)}</span>
-                        </div>
-                      </div>
+                  <div className="bg-gray-50 p-4 border-t flex gap-3">
+                    <button
+                      onClick={() => alert(`查看 ${itemName} 的紀錄`)}
+                      className="flex-1 text-xs font-semibold py-2 px-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 transition shadow-sm"
+                    >
+                      維修紀錄
+                    </button>
+                    {itemStatus === '使用中' && (
+                      <button
+                        onClick={() => handleDeactivateItem(item.id)}
+                        className="text-xs font-semibold py-2 px-3 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition"
+                      >
+                        標記停用
+                      </button>
                     )}
                   </div>
                 </div>
-
-                <div className="bg-gray-50 p-4 border-t flex gap-3">
-                  <button
-                    onClick={() => alert(`查看 ${item.name} 的紀錄`)}
-                    className="flex-1 text-xs font-semibold py-2 px-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 transition shadow-sm"
-                  >
-                    維修紀錄
-                  </button>
-                  {item.status === '使用中' && (
-                    <button
-                      onClick={() => handleDeactivateItem(item.id)}
-                      className="text-xs font-semibold py-2 px-3 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition"
-                    >
-                      標記停用
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {filteredItems.length === 0 && (
               <div className="col-span-full bg-white border border-dashed border-gray-300 rounded-2xl py-20 text-center">
                 <div className="mx-auto w-12 h-12 text-gray-300 mb-4">
@@ -482,14 +496,17 @@ function App() {
               <div className="space-y-2">
                 <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-3">現有分類 ({categories.length})</h3>
                 <div className="grid grid-cols-1 gap-2">
-                  {categories.map(cat => (
-                    <div key={cat.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition group">
-                      <span className="font-medium text-gray-700">{cat.name}</span>
-                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
-                        {/* 這裡可以加編輯或刪除按鈕 */}
+                  {categories.map((cat, idx) => {
+                    const catName = cat.name || cat.Name || cat.category_name || Object.values(cat)[1] || "未命名分類";
+                    console.log(`Rendering category ${idx}:`, cat);
+                    return (
+                      <div key={cat.id || idx} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition group">
+                        <span className="font-medium text-gray-700">{catName}</span>
+                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {categories.length === 0 && (
                     <div className="text-center py-10 text-gray-400 border border-dashed rounded-xl">
                       尚未建立分類
