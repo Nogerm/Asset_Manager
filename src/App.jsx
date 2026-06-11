@@ -132,90 +132,151 @@ function App() {
   }
 
   return (
-    <div className="max-w-md mx-auto bg-white rounded-lg shadow-md p-6 min-h-screen">
-      <h1 className="text-2xl font-bold mb-4 text-gray-800 text-center">資產與維護管理</h1>
+    <div className="w-full bg-gray-50 min-h-screen">
+      {/* Header Section */}
+      <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                AssetPro
+              </h1>
+            </div>
 
-      {userProfile && (
-        <div className="flex items-center space-x-2 mb-4 p-2 bg-blue-50 rounded">
-          <img src={userProfile.pictureUrl} alt="avatar" className="w-8 h-8 rounded-full" />
-          <span className="text-sm text-gray-700">您好，{userProfile.displayName}</span>
+            <div className="hidden md:flex space-x-8">
+              <button
+                onClick={() => setCurrentTab('items')}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${currentTab === 'items' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                物品清單
+              </button>
+              <button
+                onClick={() => setCurrentTab('categories')}
+                className={`px-3 py-2 text-sm font-medium transition-colors ${currentTab === 'categories' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                分類管理
+              </button>
+            </div>
+
+            <div className="flex items-center">
+              {userProfile ? (
+                <div className="flex items-center space-x-3 bg-gray-50 px-3 py-1.5 rounded-full border">
+                  <img src={userProfile.pictureUrl} alt="avatar" className="w-7 h-7 rounded-full" />
+                  <span className="text-sm font-medium text-gray-700">{userProfile.displayName}</span>
+                </div>
+              ) : (
+                <button className="text-sm text-blue-600 font-medium">登入</button>
+              )}
+            </div>
+          </div>
         </div>
-      )}
+      </header>
 
-      {/* 頁籤切換 */}
-      <div className="flex border-b mb-4">
+      {/* Mobile Navigation */}
+      <div className="md:hidden bg-white border-b px-4 py-2 flex justify-around">
         <button
           onClick={() => setCurrentTab('items')}
-          className={`flex-1 py-2 text-center text-sm ${currentTab === 'items' ? 'border-b-2 border-blue-500 font-bold text-blue-600' : 'text-gray-500'}`}
+          className={`text-sm py-2 px-4 rounded-md ${currentTab === 'items' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-500'}`}
         >
-          物品清單
+          物品
         </button>
         <button
           onClick={() => setCurrentTab('categories')}
-          className={`flex-1 py-2 text-center text-sm ${currentTab === 'categories' ? 'border-b-2 border-blue-500 font-bold text-blue-600' : 'text-gray-500'}`}
+          className={`text-sm py-2 px-4 rounded-md ${currentTab === 'categories' ? 'bg-blue-50 text-blue-600 font-bold' : 'text-gray-500'}`}
         >
-          分類管理
+          分類
         </button>
       </div>
 
-      {/* 物品清單頁籤 */}
-      {currentTab === 'items' && (
-        <div>
-          <div className="mb-4 space-y-2">
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜尋物品名稱..."
-              className="w-full border p-2 rounded text-sm focus:outline-blue-500"
-            />
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full border p-2 rounded text-sm focus:outline-blue-500"
-            >
-              <option value="">所有分類</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
-              ))}
-            </select>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search & Filters */}
+        {currentTab === 'items' && (
+          <div className="mb-8 bg-white p-6 rounded-xl shadow-sm border">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 relative">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="搜尋物品名稱或關鍵字..."
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
+                />
+                <svg className="absolute left-3 top-3 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+              <div>
+                <select
+                  value={selectedCategory}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none appearance-none bg-no-repeat bg-right"
+                  style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'%236b7280\'%3E%3Cpath stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'2\' d=\'M19 9l-7 7-7-7\'%3E%3C/path%3E%3C/svg%3E")', backgroundSize: '1.5em', backgroundPosition: 'right 0.5rem center' }}
+                >
+                  <option value="">所有分類</option>
+                  {categories.map(cat => (
+                    <option key={cat.id} value={cat.name}>{cat.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
+        )}
 
-          <div className="space-y-3">
+        {/* 物品清單內容 */}
+        {currentTab === 'items' && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredItems.map(item => (
-              <div key={item.id} className="border p-3 rounded hover:bg-gray-50 transition">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="font-bold text-lg text-gray-900">{item.name}</h3>
-                    <span className="inline-block bg-blue-50 text-blue-600 text-xs px-2 py-0.5 rounded mt-1">
+              <div key={item.id} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
+                <div className="p-5 flex-grow">
+                  <div className="flex justify-between items-start mb-4">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${item.status === '使用中' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${item.status === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                      {item.status}
+                    </span>
+                    <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">
                       {item.category}
                     </span>
                   </div>
-                  <span className={`text-xs font-semibold ${item.status === '使用中' ? 'text-green-600' : 'text-red-500'}`}>
-                    {item.status}
-                  </span>
+
+                  <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">{item.name}</h3>
+
+                  <div className="space-y-2 mt-4 text-sm text-gray-600">
+                    <div className="flex justify-between">
+                      <span className="text-gray-400">購買日期</span>
+                      <span className="font-medium">{formatDate(item.purchase_date)}</span>
+                    </div>
+                    {item.status === '使用中' ? (
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">已使用</span>
+                        <span className="font-bold text-blue-600">{calculateDuration(item.purchase_date)}</span>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 pt-1 border-t border-gray-50">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-400">使用壽命</span>
+                          <span className="font-medium text-gray-700">{calculateDuration(item.purchase_date, item.end_date)}</span>
+                        </div>
+                        <div className="flex justify-between text-xs">
+                          <span className="text-red-400">停用日期</span>
+                          <span className="text-red-500 font-medium">{formatDate(item.end_date)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                <div className="text-xs text-gray-500 mt-2">
-                  <div>購買日期: {formatDate(item.purchase_date)}</div>
-                  {item.status === '使用中' ? (
-                    <div>
-                      已使用: <span className="font-medium text-blue-600">{calculateDuration(item.purchase_date)}</span>
-                    </div>
-                  ) : (
-                    <div>
-                      使用壽命: <span className="font-medium text-gray-700">{calculateDuration(item.purchase_date, item.end_date)}</span>
-                      <div className="text-red-400">停用日期: {formatDate(item.end_date)}</div>
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 flex space-x-2">
-                  <button onClick={() => alert(`查看 ${item.name} 的紀錄`)} className="text-xs bg-blue-500 text-white px-2 py-1 rounded hover:bg-blue-600">
+                <div className="bg-gray-50 p-4 border-t flex gap-3">
+                  <button
+                    onClick={() => alert(`查看 ${item.name} 的紀錄`)}
+                    className="flex-1 text-xs font-semibold py-2 px-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 transition shadow-sm"
+                  >
                     維修紀錄
                   </button>
                   {item.status === '使用中' && (
-                    <button onClick={() => handleDeactivateItem(item.id)} className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded hover:bg-red-200">
+                    <button
+                      onClick={() => handleDeactivateItem(item.id)}
+                      className="text-xs font-semibold py-2 px-3 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition"
+                    >
                       標記停用
                     </button>
                   )}
@@ -223,42 +284,68 @@ function App() {
               </div>
             ))}
             {filteredItems.length === 0 && (
-              <div className="text-center text-gray-400 py-10 text-sm">無符合的物品</div>
+              <div className="col-span-full bg-white border border-dashed border-gray-300 rounded-2xl py-20 text-center">
+                <div className="mx-auto w-12 h-12 text-gray-300 mb-4">
+                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">無符合的物品</h3>
+                <p className="text-gray-500 mt-1">請嘗試變更搜尋條件或選擇其他分類</p>
+              </div>
             )}
           </div>
-        </div>
-      )}
+        )}
 
-      {/* 分類管理頁籤 */}
-      {currentTab === 'categories' && (
-        <div className="space-y-4">
-          <h2 class="text-lg font-bold text-gray-800">現有分類</h2>
+        {/* 分類管理內容 */}
+        {currentTab === 'categories' && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-sm border p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">分類管理</h2>
+                  <p className="text-sm text-gray-500 mt-1">建立與管理資產分類</p>
+                </div>
+              </div>
 
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={newCategoryName}
-              onChange={(e) => setNewCategoryName(e.target.value)}
-              placeholder="輸入新分類名稱"
-              className="flex-1 border p-2 rounded text-sm focus:outline-blue-500"
-            />
-            <button onClick={handleAddCategory} className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-              新增
-            </button>
+              <div className="flex gap-3 mb-8 p-4 bg-blue-50 rounded-xl">
+                <input
+                  type="text"
+                  value={newCategoryName}
+                  onChange={(e) => setNewCategoryName(e.target.value)}
+                  placeholder="輸入新分類名稱 (例如: 電子產品)"
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
+                />
+                <button
+                  onClick={handleAddCategory}
+                  className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg text-sm hover:bg-blue-700 transition shadow-md shadow-blue-200 active:scale-95"
+                >
+                  新增分類
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest px-2 mb-3">現有分類 ({categories.length})</h3>
+                <div className="grid grid-cols-1 gap-2">
+                  {categories.map(cat => (
+                    <div key={cat.id} className="flex justify-between items-center p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition group">
+                      <span className="font-medium text-gray-700">{cat.name}</span>
+                      <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition">
+                        {/* 這裡可以加編輯或刪除按鈕 */}
+                      </div>
+                    </div>
+                  ))}
+                  {categories.length === 0 && (
+                    <div className="text-center py-10 text-gray-400 border border-dashed rounded-xl">
+                      尚未建立分類
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
-
-          <ul className="divide-y border rounded bg-gray-50">
-            {categories.map(cat => (
-              <li key={cat.id} className="p-3 text-sm text-gray-700 flex justify-between items-center">
-                <span>{cat.name}</span>
-              </li>
-            ))}
-            {categories.length === 0 && (
-              <li className="p-3 text-sm text-gray-400 text-center">暫無分類，請先新增</li>
-            )}
-          </ul>
-        </div>
-      )}
+        )}
+      </main>
     </div>
   );
 }
