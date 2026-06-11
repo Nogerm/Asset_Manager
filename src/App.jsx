@@ -157,6 +157,7 @@ function App() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [newItem, setNewItem] = useState({
     name: '',
+    model: '', // 新增型號
     category: '',
     purchase_date: new Date().toISOString().split('T')[0],
     description: ''
@@ -182,6 +183,7 @@ function App() {
         setIsAddModalOpen(false);
         setNewItem({
           name: '',
+          model: '', // 重置型號
           category: '',
           purchase_date: new Date().toISOString().split('T')[0],
           description: ''
@@ -275,6 +277,16 @@ function App() {
                         onChange={(e) => setNewItem({...newItem, name: e.target.value})}
                         className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
                         placeholder="例如: MacBook Pro 14"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">型號</label>
+                      <input
+                        type="text"
+                        value={newItem.model}
+                        onChange={(e) => setNewItem({...newItem, model: e.target.value})}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="例如: A2442"
                       />
                     </div>
                     <div>
@@ -390,8 +402,9 @@ function App() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredItems.map((item, idx) => {
               const itemName = item.name || item.Name || Object.values(item)[1] || "未命名物品";
-              const itemCat = item.category || item.Category || Object.values(item)[2] || "未分類";
-              const itemStatus = item.status || item.Status || Object.values(item)[4] || "未知狀態";
+              const itemModel = item.model || item.Model || Object.values(item)[2] || "";
+              const itemCat = item.category || item.Category || Object.values(item)[3] || "未分類";
+              const itemStatus = item.status || item.Status || Object.values(item)[5] || "未知狀態";
               
               return (
                 <div key={item.id || idx} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
@@ -406,7 +419,14 @@ function App() {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors mb-2">{itemName}</h3>
+                    <div className="mb-2">
+                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors inline-block">{itemName}</h3>
+                      {itemModel && (
+                        <span className="ml-2 text-xs font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border">
+                          {itemModel}
+                        </span>
+                      )}
+                    </div>
 
                     <div className="space-y-2 mt-4 text-sm text-gray-600">
                       <div className="flex justify-between">

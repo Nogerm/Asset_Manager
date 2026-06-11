@@ -78,6 +78,7 @@ function doPost(e) {
       sheet.appendRow([
         id,
         postData.name,
+        postData.model || "",
         postData.category,
         postData.purchase_date,
         "使用中",
@@ -123,8 +124,9 @@ function doPost(e) {
 
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === itemId) {
-          sheet.getRange(i + 1, 5).setValue("已停用");
-          sheet.getRange(i + 1, 6).setValue(endDate);
+          // 因為新增了 model 欄位，status 和 end_date 順序往後移
+          sheet.getRange(i + 1, 6).setValue("已停用");
+          sheet.getRange(i + 1, 7).setValue(endDate);
           break;
         }
       }
@@ -135,17 +137,17 @@ function doPost(e) {
     if (action === "updateItem") {
       const sheet = ss.getSheetByName("Items");
       const data = sheet.getDataRange().getValues();
-      const headers = data[0];
       const itemId = postData.id;
 
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === itemId) {
           if (postData.name) sheet.getRange(i + 1, 2).setValue(postData.name);
-          if (postData.category) sheet.getRange(i + 1, 3).setValue(postData.category);
-          if (postData.purchase_date) sheet.getRange(i + 1, 4).setValue(postData.purchase_date);
-          if (postData.status) sheet.getRange(i + 1, 5).setValue(postData.status);
-          if (postData.end_date !== undefined) sheet.getRange(i + 1, 6).setValue(postData.end_date);
-          if (postData.description) sheet.getRange(i + 1, 7).setValue(postData.description);
+          if (postData.model !== undefined) sheet.getRange(i + 1, 3).setValue(postData.model);
+          if (postData.category) sheet.getRange(i + 1, 4).setValue(postData.category);
+          if (postData.purchase_date) sheet.getRange(i + 1, 5).setValue(postData.purchase_date);
+          if (postData.status) sheet.getRange(i + 1, 6).setValue(postData.status);
+          if (postData.end_date !== undefined) sheet.getRange(i + 1, 7).setValue(postData.end_date);
+          if (postData.description) sheet.getRange(i + 1, 8).setValue(postData.description);
           return jsonResponse({ success: true });
         }
       }
