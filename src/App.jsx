@@ -127,50 +127,183 @@ function App() {
     return new Date(dateStr).toISOString().split('T')[0];
   };
 
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newItem, setNewItem] = useState({
+    name: '',
+    category: '',
+    purchase_date: new Date().toISOString().split('T')[0],
+    description: ''
+  });
+
+  const handleAddItem = async (e) => {
+    e.preventDefault();
+    if (!newItem.name || !newItem.category) {
+      alert("請填寫必填欄位");
+      return;
+    }
+    
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "addItem",
+          ...newItem
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setIsAddModalOpen(false);
+        setNewItem({
+          name: '',
+          category: '',
+          purchase_date: new Date().toISOString().split('T')[0],
+          description: ''
+        });
+        fetchItems();
+      } else {
+        alert(json.message || "新增失敗");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   if (loading) {
-    return <div className="text-center p-10 text-gray-500">載入中...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mb-4"></div>
+          <p className="text-gray-500 font-medium">系統載入中...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="w-full bg-gray-50 min-h-screen">
       {/* Header Section */}
-      <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
+      <header className="bg-white border-b sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
+            <div className="flex items-center space-x-8">
               <h1 className="text-xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
                 AssetPro
               </h1>
+              <nav className="hidden md:flex space-x-4">
+                <button
+                  onClick={() => setCurrentTab('items')}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${currentTab === 'items' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  物品清單
+                </button>
+                <button
+                  onClick={() => setCurrentTab('categories')}
+                  className={`px-3 py-2 text-sm font-medium transition-colors ${currentTab === 'categories' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  分類管理
+                </button>
+              </nav>
             </div>
 
-            <div className="hidden md:flex space-x-8">
+            <div className="flex items-center space-x-4">
               <button
-                onClick={() => setCurrentTab('items')}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${currentTab === 'items' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                onClick={() => setIsAddModalOpen(true)}
+                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition shadow-md shadow-blue-200"
               >
-                物品清單
+                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                新增物品
               </button>
-              <button
-                onClick={() => setCurrentTab('categories')}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${currentTab === 'categories' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                分類管理
-              </button>
-            </div>
-
-            <div className="flex items-center">
-              {userProfile ? (
-                <div className="flex items-center space-x-3 bg-gray-50 px-3 py-1.5 rounded-full border">
-                  <img src={userProfile.pictureUrl} alt="avatar" className="w-7 h-7 rounded-full" />
-                  <span className="text-sm font-medium text-gray-700">{userProfile.displayName}</span>
+              {userProfile && (
+                <div className="hidden sm:flex items-center space-x-2 bg-gray-50 px-2 py-1 rounded-full border">
+                  <img src={userProfile.pictureUrl} alt="avatar" className="w-6 h-6 rounded-full" />
+                  <span className="text-xs font-medium text-gray-700">{userProfile.displayName}</span>
                 </div>
-              ) : (
-                <button className="text-sm text-blue-600 font-medium">登入</button>
               )}
             </div>
           </div>
         </div>
       </header>
+
+      {/* Add Item Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+            <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+              <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={() => setIsAddModalOpen(false)}></div>
+            </div>
+            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+              <form onSubmit={handleAddItem}>
+                <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">新增資產物品</h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">物品名稱 *</label>
+                      <input
+                        type="text"
+                        required
+                        value={newItem.name}
+                        onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                        placeholder="例如: MacBook Pro 14"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">分類 *</label>
+                      <select
+                        required
+                        value={newItem.category}
+                        onChange={(e) => setNewItem({...newItem, category: e.target.value})}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
+                      >
+                        <option value="">請選擇分類</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.name}>{cat.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">購買日期</label>
+                      <input
+                        type="date"
+                        value={newItem.purchase_date}
+                        onChange={(e) => setNewItem({...newItem, purchase_date: e.target.value})}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">描述 / 備註</label>
+                      <textarea
+                        value={newItem.description}
+                        onChange={(e) => setNewItem({...newItem, description: e.target.value})}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-24"
+                        placeholder="請輸入物品相關資訊..."
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
+                  <button
+                    type="submit"
+                    className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-4 py-2 bg-blue-600 text-base font-medium text-white hover:bg-blue-700 focus:outline-none sm:w-auto sm:text-sm"
+                  >
+                    儲存物品
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddModalOpen(false)}
+                    className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none sm:mt-0 sm:w-auto sm:text-sm"
+                  >
+                    取消
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Mobile Navigation */}
       <div className="md:hidden bg-white border-b px-4 py-2 flex justify-around">
