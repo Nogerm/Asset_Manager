@@ -8,6 +8,7 @@ function App() {
   const [currentTab, setCurrentTab] = useState('items'); // 'items' | 'categories'
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [statuses, setStatuses] = useState([]); // 新增狀態清單
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -20,7 +21,7 @@ function App() {
       setLoading(true);
       try {
         // 並行執行 LIFF 初始化與資料取得
-        const [liffResult, itemsRes, catsRes] = await Promise.allSettled([
+        const [liffResult, itemsRes, catsRes, statsRes] = await Promise.allSettled([
           liff.init({ liffId: LIFF_ID }).then(async () => {
             if (liff.isLoggedIn()) {
               return await liff.getProfile();
@@ -30,7 +31,8 @@ function App() {
             }
           }),
           fetch(`${GAS_URL}?action=getItems`).then(res => res.json()),
-          fetch(`${GAS_URL}?action=getCategories`).then(res => res.json())
+          fetch(`${GAS_URL}?action=getCategories`).then(res => res.json()),
+          fetch(`${GAS_URL}?action=getStatuses`).then(res => res.json())
         ]);
 
         if (liffResult.status === 'fulfilled') setUserProfile(liffResult.value);
@@ -41,6 +43,10 @@ function App() {
         if (catsRes.status === 'fulfilled' && catsRes.value.success) {
           console.log("Categories loaded:", catsRes.value.data);
           setCategories(catsRes.value.data);
+        }
+        if (statsRes.status === 'fulfilled' && statsRes.value.success) {
+          console.log("Statuses loaded:", statsRes.value.data);
+          setStatuses(statsRes.value.data);
         }
 
       } catch (err) {
@@ -57,7 +63,10 @@ function App() {
     try {
       const res = await fetch(`${GAS_URL}?action=getItems`);
       const json = await res.json();
-      if (json.success) setItems(json.data);
+      console.log("fetchItems result:", json);
+      if (json.success) {
+        setItems(json.data);
+      }
     } catch (err) {
       console.error("取得物品失敗", err);
     }
@@ -73,6 +82,16 @@ function App() {
       }
     } catch (err) {
       console.error("取得分類失敗", err);
+    }
+  };
+
+  const fetchStatuses = async () => {
+    try {
+      const res = await fetch(`${GAS_URL}?action=getStatuses`);
+      const json = await res.json();
+      if (json.success) setStatuses(json.data);
+    } catch (err) {
+      console.error("取得狀態失敗", err);
     }
   };
 
@@ -128,8 +147,10 @@ function App() {
   // 篩選物品邏輯
   const filteredItems = useMemo(() => {
     return items.filter(item => {
-      const matchesSearch = item.name?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = selectedCategory ? item.category === selectedCategory : true;
+      const name = item.name || item.Name || Object.values(item)[1] || "";
+      const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+      const itemCat = item.category || item.Category || Object.values(item)[3] || "";
+      const matchesCategory = selectedCategory ? itemCat === selectedCategory : true;
       return matchesSearch && matchesCategory;
     });
   }, [items, searchQuery, selectedCategory]);
@@ -151,7 +172,11 @@ function App() {
   // 工具函式：格式化日期
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
-    return new Date(dateStr).toISOString().split('T')[0];
+    try {
+      return new Date(dateStr).toISOString().split('T')[0];
+    } catch (e) {
+      return dateStr;
+    }
   };
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -159,6 +184,7 @@ function App() {
     name: '',
     model: '', // 新增型號
     category: '',
+    status: '', // 新增狀態
     purchase_date: new Date().toISOString().split('T')[0],
     description: ''
   });
@@ -185,6 +211,7 @@ function App() {
           name: '',
           model: '', // 重置型號
           category: '',
+          status: '',
           purchase_date: new Date().toISOString().split('T')[0],
           description: ''
         });
@@ -302,6 +329,21 @@ function App() {
                         {categories.map((cat, idx) => {
                           const label = cat.name || cat.Name || Object.values(cat)[1] || "未命名";
                           return <option key={cat.id || idx} value={label}>{label}</option>;
+                        })}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">初始狀態</label>
+                      <select
+                        value={newItem.status}
+                        onChange={(e) => setNewItem({...newItem, status: e.target.value})}
+                        className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
+                        style={selectStyle}
+                      >
+                        <option value="">預設狀態</option>
+                        {statuses.map((stat, idx) => {
+                          const label = stat.name || stat.Name || Object.values(stat)[1] || "未知";
+                          return <option key={stat.id || idx} value={label}>{label}</option>;
                         })}
                       </select>
                     </div>

@@ -58,6 +58,15 @@ function doGet(e) {
         .filter(log => !itemId || log.item_id === itemId);
       return jsonResponse({ success: true, data: logs });
     }
+
+    // 4. 取得狀態清單
+    if (action === "getStatuses") {
+      const sheet = ss.getSheetByName("Status");
+      if (!sheet) return jsonResponse({ success: false, message: "Sheet 'Status' not found" });
+      const data = sheet.getDataRange().getValues();
+      const statuses = data.slice(1).map(row => ({ id: row[0], name: row[1] }));
+      return jsonResponse({ success: true, data: statuses });
+    }
   } catch (err) {
     return jsonResponse({ success: false, message: err.toString() });
   }
@@ -75,13 +84,20 @@ function doPost(e) {
     if (action === "addItem") {
       const sheet = ss.getSheetByName("Items");
       const id = "item_" + new Date().getTime();
+      const statusSheet = ss.getSheetByName("Status");
+      let defaultStatus = "使用中";
+      if (statusSheet) {
+        const sData = statusSheet.getDataRange().getValues();
+        if (sData.length > 1) defaultStatus = sData[1][1];
+      }
+
       sheet.appendRow([
         id,
         postData.name,
         postData.model || "",
         postData.category,
         postData.purchase_date,
-        "使用中",
+        postData.status || defaultStatus,
         "",
         postData.description
       ]);
