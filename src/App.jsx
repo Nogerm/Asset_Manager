@@ -22,6 +22,7 @@ function App() {
   const [itemLogs, setItemLogs] = useState([]);
   const [isLogAdding, setIsLogAdding] = useState(false);
   const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: new Date().toISOString().split('T')[0] });
+  const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
   const [newItem, setNewItem] = useState({
     name: '',
@@ -100,11 +101,46 @@ function App() {
       category: item.category || Object.values(item)[3],
       purchase_date: item.purchase_date || Object.values(item)[4],
       status: item.status || Object.values(item)[5],
+      end_date: item.end_date || item.EndDate || Object.values(item)[6],
       description: item.description || Object.values(item)[7],
       thumbnail: item.thumbnail || Object.values(item)[8]
     };
     setSelectedItemForDetail(normalizedItem);
     fetchLogs(normalizedItem.id);
+  };
+
+  const handleToggleStatus = async () => {
+    if (!selectedItemForDetail || isStatusUpdating) return;
+    setIsStatusUpdating(true);
+    const isCurrentlyActive = selectedItemForDetail.status === '使用中';
+    const newStatus = isCurrentlyActive ? '未使用' : '使用中';
+    const todayStr = new Date().toISOString().split('T')[0];
+    const newEndDate = isCurrentlyActive ? todayStr : '';
+
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "updateItem",
+          id: selectedItemForDetail.id,
+          status: newStatus,
+          end_date: newEndDate
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSelectedItemForDetail(prev => ({
+          ...prev,
+          status: newStatus,
+          end_date: newEndDate
+        }));
+        fetchItems();
+      }
+    } catch (err) {
+      console.error("更新狀態失敗", err);
+    } finally {
+      setIsStatusUpdating(false);
+    }
   };
 
   const handleAddLog = async (e) => {
@@ -344,9 +380,53 @@ function App() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-6 bg-gray-50 p-4 rounded-2xl text-[11px]">
-              <div><p className="text-gray-400 font-bold uppercase mb-0.5">購買日</p><p className="font-bold text-gray-700">{formatDate(selectedItemForDetail.purchase_date)}</p></div>
-              <div><p className="text-gray-400 font-bold uppercase mb-0.5">狀態</p><p className="font-bold text-blue-600">{selectedItemForDetail.status}</p></div>
-              <div className="col-span-2 border-t pt-3"><p className="text-gray-400 font-bold uppercase mb-0.5">備註</p><p className="text-gray-600 italic">"{selectedItemForDetail.description || "無備註"}"</p></div>
+              <div>
+                <p className="text-gray-400 font-bold uppercase mb-0.5">購買日</p>
+                <p className="font-bold text-gray-700">{formatDate(selectedItemForDetail.purchase_date)}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 font-bold uppercase mb-0.5">狀態</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <button
+                    disabled={isStatusUpdating}
+                    onClick={handleToggleStatus}
+                    className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none ${
+                      selectedItemForDetail.status === '使用中' ? 'bg-green-500' : 'bg-gray-300'
+                    } ${isStatusUpdating ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                  >
+                    <span
+                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
+                        selectedItemForDetail.status === '使用中' ? 'translate-x-5' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                  <span className={`font-bold ${selectedItemForDetail.status === '使用中' ? 'text-green-600' : 'text-gray-500'}`}>
+                    {selectedItemForDetail.status}
+                  </span>
+                </div>
+              </div>
+              {selectedItemForDetail.status !== '使用中' && selectedItemForDetail.end_date && (
+                <div>
+                  <p className="text-gray-400 font-bold uppercase mb-0.5">停用日</p>
+                  <p className="font-bold text-gray-700">{formatDate(selectedItemForDetail.end_date)}</p>
+                </div>
+              )}
+              {selectedItemForDetail.purchase_date && (
+                <div className={selectedItemForDetail.status !== '使用中' && selectedItemForDetail.end_date ? "" : "col-span-2"}>
+                  <p className="text-gray-400 font-bold uppercase mb-0.5">
+                    {selectedItemForDetail.status === '使用中' ? '已使用時間' : '使用期間'}
+                  </p>
+                  <p className="font-bold text-blue-600">
+                    {selectedItemForDetail.status === '使用中'
+                      ? calculateDuration(selectedItemForDetail.purchase_date)
+                      : calculateDuration(selectedItemForDetail.purchase_date, selectedItemForDetail.end_date)}
+                  </p>
+                </div>
+              )}
+              <div className="col-span-2 border-t pt-3">
+                <p className="text-gray-400 font-bold uppercase mb-0.5">備註</p>
+                <p className="text-gray-600 italic">"{selectedItemForDetail.description || "無備註"}"</p>
+              </div>
             </div>
 
             <div className="space-y-4">
