@@ -269,27 +269,53 @@ function App() {
                 </button>
                 {expandedCategories[cat] && (
                   <div className="px-4 pb-4 space-y-1">
-                    {items.map((item, idx) => (
-                      <div key={item.id || idx} onClick={() => handleOpenDetail(item)} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50/50 transition-all cursor-pointer group">
-                        <div className="flex items-center gap-3">
-                          {item.thumbnail || Object.values(item)[8] ? <img src={item.thumbnail || Object.values(item)[8]} className="w-8 h-8 rounded-lg object-cover border border-white shadow-sm" /> : <div className="w-8 h-8 bg-gray-50 rounded-lg" />}
-                          <span className="text-sm font-bold text-gray-700 group-hover:text-blue-600">{item.name || Object.values(item)[1]}</span>
+                    {items.map((item, idx) => {
+                      const status = item.status || item.Status || Object.values(item)[5];
+                      const pDate = item.purchase_date || item.PurchaseDate || Object.values(item)[4];
+                      const eDate = item.end_date || item.EndDate || Object.values(item)[6];
+                      const duration = status === '使用中' ? calculateDuration(pDate) : (eDate ? calculateDuration(pDate, eDate) : '');
+                      
+                      return (
+                        <div key={item.id || idx} onClick={() => handleOpenDetail(item)} className="flex items-center justify-between p-2.5 rounded-xl hover:bg-blue-50/50 transition-all cursor-pointer group">
+                          <div className="flex items-center gap-3">
+                            {item.thumbnail || Object.values(item)[8] ? <img src={item.thumbnail || Object.values(item)[8]} className="w-8 h-8 rounded-lg object-cover border border-white shadow-sm" /> : <div className="w-8 h-8 bg-gray-50 rounded-lg" />}
+                            <div>
+                              <p className="text-sm font-bold text-gray-700 group-hover:text-blue-600">{item.name || Object.values(item)[1]}</p>
+                              {duration && <p className="text-[10px] text-blue-500 font-medium">{status === '使用中' ? '已使用' : '使用'} {duration}</p>}
+                            </div>
+                          </div>
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${status === '使用中' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{status}</span>
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${(item.status || Object.values(item)[5]) === '使用中' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{item.status || Object.values(item)[5]}</span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
             ))
           ) : (
             <div className={viewMode === 'grid' ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-2"}>
-              {filteredItems.map((i, idx) => (
-                <div key={i.id || idx} onClick={() => handleOpenDetail(i)} className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md cursor-pointer overflow-hidden ${viewMode === 'list' ? 'flex items-center p-2 gap-3' : 'flex flex-col'}`}>
-                  {i.thumbnail || Object.values(i)[8] ? <img src={i.thumbnail || Object.values(i)[8]} className={viewMode === 'list' ? "w-10 h-10 rounded-lg object-cover" : "h-32 w-full object-cover"} /> : <div className={viewMode === 'list' ? "w-10 h-10 bg-gray-50 rounded-lg" : "h-32 bg-gray-50"} />}
-                  <div className="p-3"><p className="text-xs font-bold text-gray-800 truncate">{i.name || Object.values(i)[1]}</p></div>
-                </div>
-              ))}
+              {filteredItems.map((item, idx) => {
+                const status = item.status || item.Status || Object.values(item)[5];
+                const pDate = item.purchase_date || item.PurchaseDate || Object.values(item)[4];
+                const eDate = item.end_date || item.EndDate || Object.values(item)[6];
+                const duration = status === '使用中' ? calculateDuration(pDate) : (eDate ? calculateDuration(pDate, eDate) : '');
+                const thumb = item.thumbnail || Object.values(item)[8];
+
+                return (
+                  <div key={item.id || idx} onClick={() => handleOpenDetail(item)} className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md cursor-pointer overflow-hidden ${viewMode === 'list' ? 'flex items-center p-2 gap-3' : 'flex flex-col'}`}>
+                    {thumb ? <img src={thumb} className={viewMode === 'list' ? "w-12 h-12 rounded-lg object-cover shadow-sm" : "h-32 w-full object-cover"} alt="" /> : <div className={viewMode === 'list' ? "w-12 h-12 bg-gray-50 rounded-lg flex items-center justify-center text-gray-200" : "h-32 bg-gray-50 flex items-center justify-center text-gray-200"}>
+                       <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>}
+                    <div className="p-3 min-w-0 flex-grow">
+                      <div className="flex justify-between items-start mb-0.5">
+                        <p className="text-xs font-bold text-gray-800 truncate">{item.name || Object.values(item)[1]}</p>
+                        {viewMode === 'list' && <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${status === '使用中' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>{status}</span>}
+                      </div>
+                      {duration && <p className="text-[10px] text-blue-500 font-medium">{status === '使用中' ? '已使用' : '使用'} {duration}</p>}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -385,6 +411,10 @@ function App() {
                   <option value="">選擇分類</option>
                   {categories.map((cat, idx) => <option key={idx}>{cat.name || Object.values(cat)[1]}</option>)}
                 </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">購買日期</label>
+                <input type="date" value={newItem.purchase_date} onChange={e => setNewItem({...newItem, purchase_date: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
               </div>
               <div className="h-24 bg-gray-50 border-2 border-dashed rounded-xl flex items-center justify-center relative">
                 {newItem.thumbnail ? <img src={newItem.thumbnail} className="w-full h-full object-cover rounded-xl" /> : <span className="text-xs text-gray-300 font-bold">點擊上傳縮圖</span>}
