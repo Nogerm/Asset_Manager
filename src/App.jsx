@@ -33,6 +33,138 @@ function App() {
     thumbnail: ''
   });
 
+  // 初始化 LIFF 與取得初始資料
+  useEffect(() => {
+    const initApp = async () => {
+      setLoading(true);
+      try {
+        const [liffResult, itemsRes, catsRes, statsRes] = await Promise.allSettled([
+          liff.init({ liffId: LIFF_ID }).then(async () => {
+            if (liff.isLoggedIn()) {
+              return await liff.getProfile();
+            } else {
+              liff.login();
+              return null;
+            }
+          }),
+          fetch(`${GAS_URL}?action=getItems&t=${Date.now()}`).then(res => res.json()),
+          fetch(`${GAS_URL}?action=getCategories&t=${Date.now()}`).then(res => res.json()),
+          fetch(`${GAS_URL}?action=getStatuses&t=${Date.now()}`).then(res => res.json())
+        ]);
+
+        if (liffResult.status === 'fulfilled') setUserProfile(liffResult.value);
+        if (itemsRes.status === 'fulfilled' && itemsRes.value.success) {
+          setItems(itemsRes.value.data);
+        }
+        if (catsRes.status === 'fulfilled' && catsRes.value.success) {
+          setCategories(catsRes.value.data);
+        }
+        if (statsRes.status === 'fulfilled' && statsRes.value.success) {
+          setStatuses(statsRes.value.data);
+        }
+
+      } catch (err) {
+        console.error("初始化失敗", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initApp();
+  }, []);
+
+  const fetchItems = async () => {
+    try {
+      const res = await fetch(`${GAS_URL}?action=getItems&t=${Date.now()}`);
+      const json = await res.json();
+      if (json.success) setItems(json.data);
+    } catch (err) {
+      console.error("取得物品失敗", err);
+    }
+  };
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch(`${GAS_URL}?action=getCategories&t=${Date.now()}`);
+      const json = await res.json();
+      if (json.success) setCategories(json.data);
+    } catch (err) {
+      console.error("取得分類失敗", err);
+    }
+  };
+
+  const handleAddCategory = async () => {
+    if (!newCategoryName.trim()) return;
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "addCategory",
+          name: newCategoryName.trim()
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setNewCategoryName('');
+        fetchCategories();
+      } else {
+        alert(json.message || "新增失敗");
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeactivateItem = async (itemId) => {
+    if (!window.confirm("確定要將此物品標記為停用嗎？")) return;
+    const today = new Date().toISOString().split('T')[0];
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "deactivateItem",
+          item_id: itemId,
+          end_date: today
+        })
+      });
+      const json = await res.json();
+      if (json.success) fetchItems();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const filteredItems = useMemo(() => {
+    return items.filter(item => {
+      const name = item.name || item.Name || Object.values(item)[1] || "";
+      const matchesSearch = name.toLowerCase().includes(searchQuery.toLowerCase());
+      const itemCat = item.category || item.Category || Object.values(item)[3] || "";
+      const matchesCategory = selectedCategory ? itemCat === selectedCategory : true;
+      return matchesSearch && matchesCategory;
+    });
+  }, [items, searchQuery, selectedCategory]);
+
+  const calculateDuration = (startDate, endDate) => {
+    if (!startDate) return '';
+    const start = new Date(startDate);
+    const end = endDate ? new Date(endDate) : new Date();
+    const diffTime = Math.abs(end - start);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays < 30) return `${diffDays} 天`;
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths < 12) return `${diffMonths} 個月`;
+    return `${(diffDays / 365).toFixed(1)} 年`;
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      return new Date(dateStr).toISOString().split('T')[0];
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   const fetchLogs = async (itemId) => {
     try {
       const res = await fetch(`${GAS_URL}?action=getLogs&itemId=${itemId}&t=${Date.now()}`);
