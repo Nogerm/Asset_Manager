@@ -14,6 +14,9 @@ function App() {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list' | 'grouped'
+  const [expandedCategories, setExpandedCategories] = useState({});
+  const [displayLimit, setDisplayLimit] = useState(12);
 
   // 初始化 LIFF 與取得初始資料
   useEffect(() => {
@@ -405,35 +408,73 @@ function App() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Search & Filters */}
+        {/* Search & Filters (Sticky) */}
         {currentTab === 'items' && (
-          <div className="mb-8 bg-white p-6 rounded-xl shadow-sm border">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2 relative">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="搜尋物品名稱或關鍵字..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none"
-                />
-                <svg className="absolute left-3 top-3 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </div>
-              <div>
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all outline-none appearance-none bg-white"
-                  style={selectStyle}
-                >
-                  <option value="">所有分類</option>
-                  {categories.map((cat, idx) => {
-                    const label = cat.name || cat.Name || Object.values(cat)[1] || "未命名";
-                    return <option key={cat.id || idx} value={label}>{label}</option>;
-                  })}
-                </select>
+          <div className="sticky top-16 z-10 bg-gray-50/95 backdrop-blur-sm pb-4 -mx-4 px-4 sm:mx-0 sm:px-0">
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-grow relative">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setDisplayLimit(12); // Reset limit on search
+                    }}
+                    placeholder="搜尋物品名稱或關鍵字..."
+                    className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
+                  />
+                  <svg className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => {
+                      setSelectedCategory(e.target.value);
+                      setDisplayLimit(12); // Reset limit on filter
+                    }}
+                    className="flex-grow md:w-48 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none appearance-none bg-white"
+                    style={selectStyle}
+                  >
+                    <option value="">所有分類</option>
+                    {categories.map((cat, idx) => {
+                      const label = cat.name || cat.Name || Object.values(cat)[1] || "未命名";
+                      return <option key={cat.id || idx} value={label}>{label}</option>;
+                    })}
+                  </select>
+                  
+                  <div className="flex border rounded-lg overflow-hidden shrink-0">
+                    <button 
+                      onClick={() => setViewMode('grid')}
+                      className={`p-2 ${viewMode === 'grid' ? 'bg-blue-600 text-white' : 'bg-white text-gray-400'}`}
+                      title="網格視圖"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                    </button>
+                    <button 
+                      onClick={() => setViewMode('list')}
+                      className={`p-2 ${viewMode === 'list' ? 'bg-blue-600 text-white' : 'bg-white text-gray-400'}`}
+                      title="列表視圖"
+                    >
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                    <button 
+                      onClick={() => setViewMode('grouped')}
+                      className={`p-2 ${viewMode === 'grouped' ? 'bg-blue-600 text-white' : 'bg-white text-gray-400'}`}
+                      title="分組視圖"
+                    >
+                      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -441,79 +482,187 @@ function App() {
 
         {/* 物品清單內容 */}
         {currentTab === 'items' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredItems.map((item, idx) => {
-              const itemName = item.name || item.Name || Object.values(item)[1] || "未命名物品";
-              const itemModel = item.model || item.Model || Object.values(item)[2] || "";
-              const itemCat = item.category || item.Category || Object.values(item)[3] || "未分類";
-              const itemStatus = item.status || item.Status || Object.values(item)[5] || "未知狀態";
-              
-              return (
-                <div key={item.id || idx} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
-                  <div className="p-5 flex-grow">
-                    <div className="flex justify-between items-start mb-4">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${itemStatus === '使用中' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                        {itemStatus}
-                      </span>
-                      <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">
-                        {itemCat}
-                      </span>
-                    </div>
-
-                    <div className="mb-2">
-                      <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors inline-block">{itemName}</h3>
-                      {itemModel && (
-                        <span className="ml-2 text-xs font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border">
-                          {itemModel}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-2 mt-4 text-sm text-gray-600">
-                      <div className="flex justify-between">
-                        <span className="text-gray-400">購買日期</span>
-                        <span className="font-medium">{formatDate(item.purchase_date || item.PurchaseDate)}</span>
-                      </div>
-                      {itemStatus === '使用中' ? (
-                        <div className="flex justify-between">
-                          <span className="text-gray-400">已使用</span>
-                          <span className="font-bold text-blue-600">{calculateDuration(item.purchase_date || item.PurchaseDate)}</span>
-                        </div>
-                      ) : (
-                        <div className="space-y-1 pt-1 border-t border-gray-50">
-                          <div className="flex justify-between text-xs">
-                            <span className="text-gray-400">使用壽命</span>
-                            <span className="font-medium text-gray-700">{calculateDuration(item.purchase_date || item.PurchaseDate, item.end_date || item.EndDate)}</span>
-                          </div>
-                          <div className="flex justify-between text-xs">
-                            <span className="text-red-400">停用日期</span>
-                            <span className="text-red-500 font-medium">{formatDate(item.end_date || item.EndDate)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 p-4 border-t flex gap-3">
-                    <button
-                      onClick={() => alert(`查看 ${itemName} 的紀錄`)}
-                      className="flex-1 text-xs font-semibold py-2 px-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 transition shadow-sm"
-                    >
-                      維修紀錄
-                    </button>
-                    {itemStatus === '使用中' && (
+          <div className="space-y-6">
+            {viewMode === 'grouped' ? (
+              // Grouped Accordion View
+              <div className="space-y-3">
+                {Object.entries(
+                  filteredItems.reduce((acc, item) => {
+                    const cat = item.category || item.Category || Object.values(item)[3] || "未分類";
+                    if (!acc[cat]) acc[cat] = [];
+                    acc[cat].push(item);
+                    return acc;
+                  }, {})
+                ).map(([category, categoryItems]) => {
+                  const isExpanded = expandedCategories[category];
+                  return (
+                    <div key={category} className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
                       <button
-                        onClick={() => handleDeactivateItem(item.id)}
-                        className="text-xs font-semibold py-2 px-3 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition"
+                        onClick={() => setExpandedCategories(prev => ({ ...prev, [category]: !prev[category] }))}
+                        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                       >
-                        標記停用
+                        <div className="flex items-center gap-3">
+                          <span className="bg-blue-50 text-blue-600 px-2 py-1 rounded text-xs font-bold uppercase tracking-wider">
+                            {category}
+                          </span>
+                          <span className="text-sm font-medium text-gray-400">({categoryItems.length} 項)</span>
+                        </div>
+                        <svg className={`w-5 h-5 text-gray-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
                       </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+                      
+                      {isExpanded && (
+                        <div className="border-t bg-gray-50/30 p-3 space-y-2">
+                          {categoryItems.map((item, idx) => {
+                            const itemName = item.name || item.Name || Object.values(item)[1] || "未命名物品";
+                            const itemModel = item.model || item.Model || Object.values(item)[2] || "";
+                            const itemStatus = item.status || item.Status || Object.values(item)[5] || "未知狀態";
+                            
+                            return (
+                              <div key={item.id || idx} className="bg-white p-3 rounded-lg border border-gray-100 flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-1.5 h-1.5 rounded-full ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                  <span className="font-bold text-gray-800 text-sm">{itemName}</span>
+                                  {itemModel && <span className="text-[10px] text-gray-400">({itemModel})</span>}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[10px] font-bold text-blue-600">{calculateDuration(item.purchase_date || item.PurchaseDate)}</span>
+                                  <button onClick={() => alert(`查看 ${itemName} 的紀錄`)} className="p-1 text-gray-300 hover:text-blue-600">
+                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              // Standard View (Grid or List)
+              <div className={viewMode === 'grid' 
+                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" 
+                : "flex flex-col gap-3"
+              }>
+                {filteredItems.slice(0, displayLimit).map((item, idx) => {
+                  const itemName = item.name || item.Name || Object.values(item)[1] || "未命名物品";
+                  const itemModel = item.model || item.Model || Object.values(item)[2] || "";
+                  const itemCat = item.category || item.Category || Object.values(item)[3] || "未分類";
+                  const itemStatus = item.status || item.Status || Object.values(item)[5] || "未知狀態";
+                  
+                  if (viewMode === 'list') {
+                    return (
+                      <div key={item.id || idx} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between hover:shadow-sm transition-all">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-2 h-2 rounded-full ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          <div>
+                            <h3 className="font-bold text-gray-900 text-sm">{itemName}</h3>
+                            <div className="flex gap-2 items-center">
+                              <span className="text-[10px] text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded uppercase font-bold">{itemCat}</span>
+                              {itemModel && <span className="text-[10px] text-gray-400">({itemModel})</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-right hidden sm:block">
+                            <p className="text-[10px] text-gray-400">使用時間</p>
+                            <p className="text-xs font-bold text-blue-600">{calculateDuration(item.purchase_date || item.PurchaseDate)}</p>
+                          </div>
+                          <button 
+                            onClick={() => alert(`查看 ${itemName} 的紀錄`)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600"
+                          >
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={item.id || idx} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
+                      <div className="p-5 flex-grow">
+                        <div className="flex justify-between items-start mb-4">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${itemStatus === '使用中' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            {itemStatus}
+                          </span>
+                          <span className="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded uppercase tracking-wider">
+                            {itemCat}
+                          </span>
+                        </div>
+
+                        <div className="mb-2">
+                          <h3 className="text-lg font-bold text-gray-900 group-hover:text-blue-600 transition-colors inline-block">{itemName}</h3>
+                          {itemModel && (
+                            <span className="ml-2 text-xs font-medium text-gray-400 bg-gray-50 px-1.5 py-0.5 rounded border">
+                              {itemModel}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="space-y-2 mt-4 text-sm text-gray-600">
+                          <div className="flex justify-between">
+                            <span className="text-gray-400">購買日期</span>
+                            <span className="font-medium">{formatDate(item.purchase_date || item.PurchaseDate)}</span>
+                          </div>
+                          {itemStatus === '使用中' ? (
+                            <div className="flex justify-between">
+                              <span className="text-gray-400">已使用</span>
+                              <span className="font-bold text-blue-600">{calculateDuration(item.purchase_date || item.PurchaseDate)}</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-1 pt-1 border-t border-gray-50">
+                              <div className="flex justify-between text-xs">
+                                <span className="text-gray-400">使用壽命</span>
+                                <span className="font-medium text-gray-700">{calculateDuration(item.purchase_date || item.PurchaseDate, item.end_date || item.EndDate)}</span>
+                              </div>
+                              <div className="flex justify-between text-xs">
+                                <span className="text-red-400">停用日期</span>
+                                <span className="text-red-500 font-medium">{formatDate(item.end_date || item.EndDate)}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 p-4 border-t flex gap-3">
+                        <button
+                          onClick={() => alert(`查看 ${itemName} 的紀錄`)}
+                          className="flex-1 text-xs font-semibold py-2 px-3 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-100 transition shadow-sm"
+                        >
+                          維修紀錄
+                        </button>
+                        {itemStatus === '使用中' && (
+                          <button
+                            onClick={() => handleDeactivateItem(item.id)}
+                            className="text-xs font-semibold py-2 px-3 bg-red-50 text-red-600 border border-red-100 rounded-lg hover:bg-red-100 transition"
+                          >
+                            標記停用
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Load More Button (Only for Grid/List) */}
+            {viewMode !== 'grouped' && filteredItems.length > displayLimit && (
+              <div className="flex justify-center py-4">
+                <button
+                  onClick={() => setDisplayLimit(prev => prev + 12)}
+                  className="px-8 py-3 bg-white border-2 border-blue-100 text-blue-600 font-bold rounded-xl hover:bg-blue-50 hover:border-blue-200 transition active:scale-95 shadow-sm"
+                >
+                  載入更多物品 ({filteredItems.length - displayLimit} 剩餘)
+                </button>
+              </div>
+            )}
+
             {filteredItems.length === 0 && (
               <div className="col-span-full bg-white border border-dashed border-gray-300 rounded-2xl py-20 text-center">
                 <div className="mx-auto w-12 h-12 text-gray-300 mb-4">
