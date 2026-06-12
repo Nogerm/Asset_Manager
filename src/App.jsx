@@ -64,7 +64,7 @@ function App() {
 
   const fetchItems = async () => {
     try {
-      const res = await fetch(`${GAS_URL}?action=getItems`);
+      const res = await fetch(`${GAS_URL}?action=getItems&t=${Date.now()}`);
       const json = await res.json();
       console.log("fetchItems result:", json);
       if (json.success) {
@@ -77,7 +77,7 @@ function App() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch(`${GAS_URL}?action=getCategories`);
+      const res = await fetch(`${GAS_URL}?action=getCategories&t=${Date.now()}`);
       const json = await res.json();
       if (json.success) {
         console.log("Categories fetched:", json.data);
@@ -90,7 +90,7 @@ function App() {
 
   const fetchStatuses = async () => {
     try {
-      const res = await fetch(`${GAS_URL}?action=getStatuses`);
+      const res = await fetch(`${GAS_URL}?action=getStatuses&t=${Date.now()}`);
       const json = await res.json();
       if (json.success) setStatuses(json.data);
     } catch (err) {
@@ -200,7 +200,7 @@ function App() {
 
   const fetchLogs = async (itemId) => {
     try {
-      const res = await fetch(`${GAS_URL}?action=getLogs&itemId=${itemId}`);
+      const res = await fetch(`${GAS_URL}?action=getLogs&itemId=${itemId}&t=${Date.now()}`);
       const json = await res.json();
       if (json.success) setItemLogs(json.data);
     } catch (err) {
@@ -259,11 +259,38 @@ function App() {
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        if (target === 'new') {
-          setNewItem({ ...newItem, thumbnail: reader.result });
-        } else if (target === 'edit') {
-          handleUpdateThumbnail(reader.result);
-        }
+        const img = new Image();
+        img.src = reader.result;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 400;
+          const MAX_HEIGHT = 400;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
+
+          if (target === 'new') {
+            setNewItem({ ...newItem, thumbnail: compressedBase64 });
+          } else if (target === 'edit') {
+            handleUpdateThumbnail(compressedBase64);
+          }
+        };
       };
       reader.readAsDataURL(file);
     }
