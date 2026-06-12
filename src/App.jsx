@@ -176,8 +176,20 @@ function App() {
   };
 
   const handleOpenDetail = (item) => {
-    setSelectedItemForDetail(item);
-    fetchLogs(item.id || Object.values(item)[0]);
+    // 規範化資料格式，避免 ID 或屬性抓不到
+    const normalizedItem = {
+      id: item.id || Object.values(item)[0],
+      name: item.name || Object.values(item)[1],
+      model: item.model || Object.values(item)[2],
+      category: item.category || Object.values(item)[3],
+      purchase_date: item.purchase_date || Object.values(item)[4],
+      status: item.status || Object.values(item)[5],
+      end_date: item.end_date || Object.values(item)[6],
+      description: item.description || Object.values(item)[7],
+      thumbnail: item.thumbnail || Object.values(item)[8]
+    };
+    setSelectedItemForDetail(normalizedItem);
+    fetchLogs(normalizedItem.id);
   };
 
   const handleAddLog = async (e) => {
@@ -502,7 +514,7 @@ function App() {
       {isSettingsOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm shadow-inner" onClick={() => setIsSettingsOpen(false)}></div>
-          <div className="relative bg-white rounded-[32px] shadow-2xl max-w-md w-full p-8 animate-in zoom-in-95 duration-200">
+          <div className="relative bg-white rounded-[32px] shadow-2xl max-w-md w-full p-8 duration-200">
              <div className="flex justify-between items-center mb-8 border-b pb-4">
                <h2 className="text-xl font-bold tracking-tight">管理設定</h2>
                <button onClick={() => setIsSettingsOpen(false)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black bg-gray-50 rounded-full transition-colors">
@@ -543,7 +555,7 @@ function App() {
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsAddModalOpen(false)}></div>
-          <div className="relative bg-white rounded-[32px] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-8 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="relative bg-white rounded-[32px] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-8 duration-300">
              <div className="flex justify-between items-center mb-8 border-b pb-4">
                <h2 className="text-xl font-bold tracking-tight">新增資產</h2>
                <button onClick={() => setIsAddModalOpen(false)} className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-black bg-gray-50 rounded-full transition-colors">
@@ -598,12 +610,12 @@ function App() {
       {selectedItemForDetail && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6">
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setSelectedItemForDetail(null)}></div>
-          <div className="relative bg-white rounded-[40px] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-10 animate-in zoom-in-95 duration-200 border border-gray-100">
+          <div className="relative bg-white rounded-[40px] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-10 duration-200 border border-gray-100">
              <div className="flex justify-between items-start mb-10">
                 <div className="flex gap-6 items-center">
                   <div className="relative group/edit shadow-2xl shadow-black/10 rounded-3xl overflow-hidden ring-4 ring-white">
-                    {(selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]) ? (
-                      <img src={selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]} className="w-28 h-24 object-cover" alt="" />
+                    {selectedItemForDetail.thumbnail ? (
+                      <img src={selectedItemForDetail.thumbnail} className="w-28 h-24 object-cover" alt="" />
                     ) : (
                       <div className="w-28 h-24 bg-gray-50 flex items-center justify-center text-gray-200">
                         <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
@@ -615,9 +627,9 @@ function App() {
                     </label>
                   </div>
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight mb-1 text-gray-800">{selectedItemForDetail.name || Object.values(selectedItemForDetail)[1]}</h2>
-                    <p className="text-sm text-gray-400 font-medium mb-3">{selectedItemForDetail.model || Object.values(selectedItemForDetail)[2] || '標準型號'}</p>
-                    <span className="text-[10px] font-black tracking-widest uppercase px-3 py-1 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{selectedItemForDetail.category || Object.values(selectedItemForDetail)[3]}</span>
+                    <h2 className="text-2xl font-bold tracking-tight mb-1 text-gray-800">{selectedItemForDetail.name}</h2>
+                    <p className="text-sm text-gray-400 font-medium mb-3">{selectedItemForDetail.model || '標準型號'}</p>
+                    <span className="text-[10px] font-black tracking-widest uppercase px-3 py-1 bg-blue-50 text-blue-600 rounded-full border border-blue-100">{selectedItemForDetail.category}</span>
                   </div>
                 </div>
                 <button onClick={() => setSelectedItemForDetail(null)} className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-black bg-gray-50 rounded-full transition-all">
@@ -628,18 +640,18 @@ function App() {
              <div className="grid grid-cols-2 gap-8 mb-12 bg-gray-50/50 p-6 rounded-[32px] border border-gray-100">
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">購買日期</p>
-                  <p className="text-sm font-bold text-gray-700">{formatDate(selectedItemForDetail.purchase_date || Object.values(selectedItemForDetail)[4])}</p>
+                  <p className="text-sm font-bold text-gray-700">{formatDate(selectedItemForDetail.purchase_date)}</p>
                 </div>
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">目前狀態</p>
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${(selectedItemForDetail.status || Object.values(selectedItemForDetail)[5]) === '使用中' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                    <p className="text-sm font-bold text-gray-800">{selectedItemForDetail.status || Object.values(selectedItemForDetail)[5]}</p>
+                    <div className={`w-2 h-2 rounded-full ${selectedItemForDetail.status === '使用中' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                    <p className="text-sm font-bold text-gray-800">{selectedItemForDetail.status}</p>
                   </div>
                 </div>
                 <div className="col-span-2 space-y-1 border-t pt-4">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">描述備註</p>
-                  <p className="text-sm text-gray-500 leading-relaxed italic">"{selectedItemForDetail.description || Object.values(selectedItemForDetail)[7] || "未提供詳細描述。"}"</p>
+                  <p className="text-sm text-gray-500 leading-relaxed italic">"{selectedItemForDetail.description || "未提供詳細描述。"}"</p>
                 </div>
              </div>
 
