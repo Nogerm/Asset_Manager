@@ -33,11 +33,6 @@ function App() {
     thumbnail: ''
   });
 
-  const [selectedItemForDetail, setSelectedItemForDetail] = useState(null);
-  const [itemLogs, setItemLogs] = useState([]);
-  const [isLogAdding, setIsLogAdding] = useState(false);
-  const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: new Date().toISOString().split('T')[0] });
-
   const fetchLogs = async (itemId) => {
     try {
       const res = await fetch(`${GAS_URL}?action=getLogs&itemId=${itemId}&t=${Date.now()}`);
