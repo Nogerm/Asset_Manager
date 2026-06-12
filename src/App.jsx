@@ -21,7 +21,7 @@ function App() {
   const [selectedItemForDetail, setSelectedItemForDetail] = useState(null);
   const [itemLogs, setItemLogs] = useState([]);
   const [isLogAdding, setIsLogAdding] = useState(false);
-  const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: new Date().toISOString().split('T')[0] });
+  const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: new Date().toISOString().split('T')[0], price: '' });
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
 
   const [newItem, setNewItem] = useState({
@@ -31,7 +31,8 @@ function App() {
     status: '',
     purchase_date: new Date().toISOString().split('T')[0],
     description: '',
-    thumbnail: ''
+    thumbnail: '',
+    price: ''
   });
 
   const selectStyle = {
@@ -103,7 +104,8 @@ function App() {
       status: item.status || Object.values(item)[5],
       end_date: item.end_date || item.EndDate || Object.values(item)[6],
       description: item.description || Object.values(item)[7],
-      thumbnail: item.thumbnail || Object.values(item)[8]
+      thumbnail: item.thumbnail || Object.values(item)[8],
+      price: item.price || item.Price || Object.values(item)[9] || ""
     };
     setSelectedItemForDetail(normalizedItem);
     fetchLogs(normalizedItem.id);
@@ -158,7 +160,7 @@ function App() {
       });
       const json = await res.json();
       if (json.success) {
-        setNewLog({ ...newLog, detail: '' });
+        setNewLog({ ...newLog, detail: '', price: '' });
         fetchLogs(selectedItemForDetail.id);
       }
     } catch (err) { console.error(err); }
@@ -219,7 +221,7 @@ function App() {
       const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "addItem", ...newItem }) });
       if ((await res.json()).success) {
         setIsAddModalOpen(false);
-        setNewItem({ name: '', model: '', category: '', status: '', purchase_date: new Date().toISOString().split('T')[0], description: '', thumbnail: '' });
+        setNewItem({ name: '', model: '', category: '', status: '', purchase_date: new Date().toISOString().split('T')[0], description: '', thumbnail: '', price: '' });
         fetchItems();
       }
     } catch (err) { console.error(err); }
@@ -385,6 +387,14 @@ function App() {
                 <p className="font-bold text-gray-700">{formatDate(selectedItemForDetail.purchase_date)}</p>
               </div>
               <div>
+                <p className="text-gray-400 font-bold uppercase mb-0.5">價格</p>
+                <p className="font-bold text-red-600">
+                  {selectedItemForDetail.price !== "" && selectedItemForDetail.price !== undefined
+                    ? `$${Number(selectedItemForDetail.price).toLocaleString()}`
+                    : "—"}
+                </p>
+              </div>
+              <div>
                 <p className="text-gray-400 font-bold uppercase mb-0.5">狀態</p>
                 <div className="flex items-center gap-2 mt-0.5">
                   <button
@@ -405,19 +415,21 @@ function App() {
                   </span>
                 </div>
               </div>
-              {selectedItemForDetail.status !== '使用中' && selectedItemForDetail.end_date && (
+              {selectedItemForDetail.status !== '使用中' && selectedItemForDetail.end_date ? (
                 <div>
                   <p className="text-gray-400 font-bold uppercase mb-0.5">停用日</p>
                   <p className="font-bold text-gray-700">{formatDate(selectedItemForDetail.end_date)}</p>
                 </div>
+              ) : (
+                <div>{/* Empty block to keep layout aligned */}</div>
               )}
               {selectedItemForDetail.purchase_date && (
-                <div className={selectedItemForDetail.status !== '使用中' && selectedItemForDetail.end_date ? "" : "col-span-2"}>
+                <div className="col-span-2 border-t pt-2 mt-1">
                   <p className="text-gray-400 font-bold uppercase mb-0.5">
-                    {selectedItemForDetail.status === '使用中' ? '已使用時間' : '使用期間'}
+                    {selectedItemForDetail.status === 'using' || selectedItemForDetail.status === '使用中' ? '已使用時間' : '使用期間'}
                   </p>
                   <p className="font-bold text-blue-600">
-                    {selectedItemForDetail.status === '使用中'
+                    {selectedItemForDetail.status === 'using' || selectedItemForDetail.status === '使用中'
                       ? calculateDuration(selectedItemForDetail.purchase_date)
                       : calculateDuration(selectedItemForDetail.purchase_date, selectedItemForDetail.end_date)}
                   </p>
@@ -435,6 +447,7 @@ function App() {
                 <div className="flex gap-2">
                   <input type="date" value={newLog.date} onChange={e => setNewLog({...newLog, date: e.target.value})} className="flex-1 h-8 px-2 bg-gray-50 rounded-lg text-[10px] outline-none" />
                   <select value={newLog.type} onChange={e => setNewLog({...newLog, type: e.target.value})} className="flex-1 h-8 px-2 bg-gray-50 rounded-lg text-[10px] outline-none appearance-none" style={selectStyle}><option>維修</option><option>保養</option><option>零件更換</option></select>
+                  <input type="number" placeholder="金額" value={newLog.price} onChange={e => setNewLog({...newLog, price: e.target.value})} className="flex-1 h-8 px-2 bg-gray-50 rounded-lg text-[10px] outline-none" />
                 </div>
                 <div className="flex gap-2">
                   <input required placeholder="紀錄內容..." value={newLog.detail} onChange={e => setNewLog({...newLog, detail: e.target.value})} className="flex-grow h-9 px-3 bg-gray-50 rounded-lg text-[11px] outline-none" />
@@ -492,9 +505,15 @@ function App() {
                   {categories.map((cat, idx) => <option key={idx}>{cat.name || Object.values(cat)[1]}</option>)}
                 </select>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">購買日期</label>
-                <input type="date" value={newItem.purchase_date} onChange={e => setNewItem({...newItem, purchase_date: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">購買日期</label>
+                  <input type="date" value={newItem.purchase_date} onChange={e => setNewItem({...newItem, purchase_date: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">價格</label>
+                  <input type="number" placeholder="金額" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
+                </div>
               </div>
               <div className="h-24 bg-gray-50 border-2 border-dashed rounded-xl flex items-center justify-center relative">
                 {newItem.thumbnail ? <img src={newItem.thumbnail} className="w-full h-full object-cover rounded-xl" /> : <span className="text-xs text-gray-300 font-bold">點擊上傳縮圖</span>}

@@ -100,7 +100,8 @@ function doPost(e) {
         postData.status || defaultStatus,
         "",
         postData.description,
-        postData.thumbnail || "" // 第 9 欄：縮圖
+        postData.thumbnail || "", // 第 9 欄：縮圖
+        postData.price !== undefined ? postData.price : "" // 第 10 欄：價格
       ]);
       return jsonResponse({ success: true, id: id });
     }
@@ -127,7 +128,8 @@ function doPost(e) {
         postData.item_id,
         postData.date,
         postData.type,
-        postData.detail
+        postData.detail,
+        postData.price !== undefined ? postData.price : "" // 第 6 欄：價格
       ]);
       return jsonResponse({ success: true, log_id: logId });
     }
@@ -180,6 +182,7 @@ function doPost(e) {
           if (postData.end_date !== undefined) sheet.getRange(i + 1, 7).setValue(postData.end_date);
           if (postData.description) sheet.getRange(i + 1, 8).setValue(postData.description);
           if (postData.thumbnail !== undefined) sheet.getRange(i + 1, 9).setValue(postData.thumbnail);
+          if (postData.price !== undefined) sheet.getRange(i + 1, 10).setValue(postData.price);
           return jsonResponse({ success: true });
         }
       }
