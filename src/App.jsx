@@ -189,8 +189,83 @@ function App() {
     category: '',
     status: '', // 新增狀態
     purchase_date: new Date().toISOString().split('T')[0],
-    description: ''
+    description: '',
+    thumbnail: ''
   });
+
+  const [selectedItemForDetail, setSelectedItemForDetail] = useState(null);
+  const [itemLogs, setItemLogs] = useState([]);
+  const [isLogAdding, setIsLogAdding] = useState(false);
+  const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: new Date().toISOString().split('T')[0] });
+
+  const fetchLogs = async (itemId) => {
+    try {
+      const res = await fetch(`${GAS_URL}?action=getLogs&itemId=${itemId}`);
+      const json = await res.json();
+      if (json.success) setItemLogs(json.data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleOpenDetail = (item) => {
+    setSelectedItemForDetail(item);
+    fetchLogs(item.id || Object.values(item)[0]);
+  };
+
+  const handleAddLog = async (e) => {
+    e.preventDefault();
+    if (!newLog.detail) return;
+    setIsLogAdding(true);
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "addLog",
+          item_id: selectedItemForDetail.id || Object.values(selectedItemForDetail)[0],
+          ...newLog
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setNewLog({ ...newLog, detail: '' });
+        fetchLogs(selectedItemForDetail.id || Object.values(selectedItemForDetail)[0]);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLogAdding(false);
+    }
+  };
+
+  const handleDeleteLog = async (logId) => {
+    if (!window.confirm("確定刪除此紀錄？")) return;
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "deleteLog", id: logId })
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchLogs(selectedItemForDetail.id || Object.values(selectedItemForDetail)[0]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleImageUpload = (e, target) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (target === 'new') {
+          setNewItem({ ...newItem, thumbnail: reader.result });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handleAddItem = async (e) => {
     e.preventDefault();
@@ -216,7 +291,8 @@ function App() {
           category: '',
           status: '',
           purchase_date: new Date().toISOString().split('T')[0],
-          description: ''
+          description: '',
+          thumbnail: ''
         });
         fetchItems();
       } else {
@@ -368,6 +444,18 @@ function App() {
                         placeholder="請輸入物品相關資訊..."
                       />
                     </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">上傳縮圖</label>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload(e, 'new')}
+                        className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                      />
+                      {newItem.thumbnail && (
+                        <img src={newItem.thumbnail} className="mt-2 w-20 h-20 object-cover rounded-lg border" alt="preview" />
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse gap-2">
@@ -386,6 +474,112 @@ function App() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Item Detail & Logs Modal */}
+      {selectedItemForDetail && (
+        <div className="fixed inset-0 z-50 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-screen px-4">
+            <div className="fixed inset-0 bg-gray-500 opacity-75" onClick={() => setSelectedItemForDetail(null)}></div>
+            <div className="relative bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-start mb-6">
+                  <div className="flex gap-4">
+                    {(selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]) && (
+                      <img 
+                        src={selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]} 
+                        className="w-20 h-20 object-cover rounded-xl border shadow-sm"
+                        alt="thumbnail"
+                      />
+                    )}
+                    <div>
+                      <h2 className="text-2xl font-bold text-gray-900">{selectedItemForDetail.name || Object.values(selectedItemForDetail)[1]}</h2>
+                      <p className="text-sm text-gray-500">{selectedItemForDetail.model || Object.values(selectedItemForDetail)[2]}</p>
+                      <span className="inline-block mt-2 px-2 py-1 bg-indigo-50 text-indigo-600 text-[10px] font-bold rounded uppercase">
+                        {selectedItemForDetail.category || Object.values(selectedItemForDetail)[3]}
+                      </span>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedItemForDetail(null)} className="text-gray-400 hover:text-gray-600">
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 mb-8 bg-gray-50 p-4 rounded-xl border">
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">購買日期</p>
+                    <p className="text-sm font-medium">{formatDate(selectedItemForDetail.purchase_date || Object.values(selectedItemForDetail)[4])}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">目前狀態</p>
+                    <p className="text-sm font-bold text-blue-600">{selectedItemForDetail.status || Object.values(selectedItemForDetail)[5]}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">描述備註</p>
+                    <p className="text-sm text-gray-600">{selectedItemForDetail.description || Object.values(selectedItemForDetail)[7] || "無備註"}</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div className="flex justify-between items-center border-b pb-2">
+                    <h3 className="text-lg font-bold text-gray-900">維修與異動紀錄</h3>
+                  </div>
+
+                  <form onSubmit={handleAddLog} className="flex gap-2">
+                    <select 
+                      value={newLog.type}
+                      onChange={e => setNewLog({...newLog, type: e.target.value})}
+                      className="text-xs border rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      <option>維修</option>
+                      <option>保養</option>
+                      <option>零件更換</option>
+                      <option>異動</option>
+                    </select>
+                    <input 
+                      type="text" 
+                      required
+                      placeholder="輸入紀錄內容..."
+                      value={newLog.detail}
+                      onChange={e => setNewLog({...newLog, detail: e.target.value})}
+                      className="flex-grow text-xs border rounded-lg px-3 py-1 outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <button 
+                      disabled={isLogAdding}
+                      className="bg-blue-600 text-white px-4 py-1 rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {isLogAdding ? '...' : '新增'}
+                    </button>
+                  </form>
+
+                  <div className="space-y-3">
+                    {itemLogs.length > 0 ? itemLogs.map((log, lidx) => (
+                      <div key={log.id || lidx} className="flex items-start gap-3 p-3 bg-white border rounded-lg group">
+                        <div className="mt-1">
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${log.type === '維修' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                            {log.type}
+                          </span>
+                        </div>
+                        <div className="flex-grow">
+                          <p className="text-sm text-gray-700">{log.detail}</p>
+                          <p className="text-[10px] text-gray-400 mt-1">{formatDate(log.date)}</p>
+                        </div>
+                        <button 
+                          onClick={() => handleDeleteLog(log.id || Object.values(log)[0])}
+                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        </button>
+                      </div>
+                    )) : (
+                      <p className="text-center py-4 text-gray-400 text-sm">尚無紀錄</p>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -520,15 +714,19 @@ function App() {
                             const itemStatus = item.status || item.Status || Object.values(item)[5] || "未知狀態";
                             
                             return (
-                              <div key={item.id || idx} className="bg-white p-3 rounded-lg border border-gray-100 flex items-center justify-between">
+                              <div key={item.id || idx} className="bg-white p-3 rounded-lg border border-gray-100 flex items-center justify-between cursor-pointer hover:bg-gray-50 transition-colors" onClick={() => handleOpenDetail(item)}>
                                 <div className="flex items-center gap-3">
-                                  <div className={`w-1.5 h-1.5 rounded-full ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                  {(item.thumbnail || Object.values(item)[8]) ? (
+                                    <img src={item.thumbnail || Object.values(item)[8]} className="w-8 h-8 object-cover rounded border" alt="thumb" />
+                                  ) : (
+                                    <div className={`w-1.5 h-1.5 rounded-full ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                                  )}
                                   <span className="font-bold text-gray-800 text-sm">{itemName}</span>
                                   {itemModel && <span className="text-[10px] text-gray-400">({itemModel})</span>}
                                 </div>
                                 <div className="flex items-center gap-3">
                                   <span className="text-[10px] font-bold text-blue-600">{calculateDuration(item.purchase_date || item.PurchaseDate)}</span>
-                                  <button onClick={() => alert(`查看 ${itemName} 的紀錄`)} className="p-1 text-gray-300 hover:text-blue-600">
+                                  <button className="p-1 text-gray-300 hover:text-blue-600">
                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                                   </button>
                                 </div>
@@ -555,9 +753,13 @@ function App() {
                   
                   if (viewMode === 'list') {
                     return (
-                      <div key={item.id || idx} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between hover:shadow-sm transition-all">
+                      <div key={item.id || idx} className="bg-white p-3 rounded-xl border border-gray-100 flex items-center justify-between hover:shadow-sm transition-all cursor-pointer" onClick={() => handleOpenDetail(item)}>
                         <div className="flex items-center gap-4">
-                          <div className={`w-2 h-2 rounded-full ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          {(item.thumbnail || Object.values(item)[8]) ? (
+                            <img src={item.thumbnail || Object.values(item)[8]} className="w-10 h-10 object-cover rounded-lg border shadow-sm" alt="thumb" />
+                          ) : (
+                            <div className={`w-2 h-2 rounded-full ${itemStatus === '使用中' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                          )}
                           <div>
                             <h3 className="font-bold text-gray-900 text-sm">{itemName}</h3>
                             <div className="flex gap-2 items-center">
@@ -583,7 +785,12 @@ function App() {
                   }
 
                   return (
-                    <div key={item.id || idx} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col">
+                    <div key={item.id || idx} className="group bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col cursor-pointer" onClick={() => handleOpenDetail(item)}>
+                      {(item.thumbnail || Object.values(item)[8]) && (
+                        <div className="h-40 w-full overflow-hidden border-b">
+                          <img src={item.thumbnail || Object.values(item)[8]} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="item" />
+                        </div>
+                      )}
                       <div className="p-5 flex-grow">
                         <div className="flex justify-between items-start mb-4">
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${itemStatus === '使用中' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>

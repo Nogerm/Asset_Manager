@@ -99,7 +99,8 @@ function doPost(e) {
         postData.purchase_date,
         postData.status || defaultStatus,
         "",
-        postData.description
+        postData.description,
+        postData.thumbnail || "" // 第 9 欄：縮圖
       ]);
       return jsonResponse({ success: true, id: id });
     }
@@ -131,6 +132,21 @@ function doPost(e) {
       return jsonResponse({ success: true, log_id: logId });
     }
 
+    // 新增：刪除紀錄
+    if (action === "deleteLog") {
+      const sheet = ss.getSheetByName("Logs");
+      const data = sheet.getDataRange().getValues();
+      const logId = postData.id;
+
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === logId) {
+          sheet.deleteRow(i + 1);
+          return jsonResponse({ success: true });
+        }
+      }
+      return jsonResponse({ success: false, message: "Log not found" });
+    }
+
     // 4. 停用物品
     if (action === "deactivateItem") {
       const sheet = ss.getSheetByName("Items");
@@ -140,7 +156,6 @@ function doPost(e) {
 
       for (let i = 1; i < data.length; i++) {
         if (data[i][0] === itemId) {
-          // 因為新增了 model 欄位，status 和 end_date 順序往後移
           sheet.getRange(i + 1, 6).setValue("已停用");
           sheet.getRange(i + 1, 7).setValue(endDate);
           break;
@@ -164,6 +179,7 @@ function doPost(e) {
           if (postData.status) sheet.getRange(i + 1, 6).setValue(postData.status);
           if (postData.end_date !== undefined) sheet.getRange(i + 1, 7).setValue(postData.end_date);
           if (postData.description) sheet.getRange(i + 1, 8).setValue(postData.description);
+          if (postData.thumbnail !== undefined) sheet.getRange(i + 1, 9).setValue(postData.thumbnail);
           return jsonResponse({ success: true });
         }
       }
