@@ -261,9 +261,33 @@ function App() {
       reader.onloadend = () => {
         if (target === 'new') {
           setNewItem({ ...newItem, thumbnail: reader.result });
+        } else if (target === 'edit') {
+          handleUpdateThumbnail(reader.result);
         }
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUpdateThumbnail = async (base64) => {
+    if (!selectedItemForDetail) return;
+    const itemId = selectedItemForDetail.id || Object.values(selectedItemForDetail)[0];
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "updateItem",
+          id: itemId,
+          thumbnail: base64
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSelectedItemForDetail({ ...selectedItemForDetail, thumbnail: base64 });
+        fetchItems();
+      }
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -488,13 +512,23 @@ function App() {
               <div className="p-6">
                 <div className="flex justify-between items-start mb-6">
                   <div className="flex gap-4">
-                    {(selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]) && (
-                      <img 
-                        src={selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]} 
-                        className="w-20 h-20 object-cover rounded-xl border shadow-sm"
-                        alt="thumbnail"
-                      />
-                    )}
+                    <div className="relative group/thumb">
+                      {(selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]) ? (
+                        <img 
+                          src={selectedItemForDetail.thumbnail || Object.values(selectedItemForDetail)[8]} 
+                          className="w-20 h-20 object-cover rounded-xl border shadow-sm"
+                          alt="thumbnail"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 bg-gray-100 rounded-xl border flex items-center justify-center text-gray-300">
+                           <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                        </div>
+                      )}
+                      <label className="absolute inset-0 flex items-center justify-center bg-black/40 text-white opacity-0 group-hover/thumb:opacity-100 rounded-xl cursor-pointer transition-opacity text-[10px] font-bold">
+                        更換圖片
+                        <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageUpload(e, 'edit')} />
+                      </label>
+                    </div>
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900">{selectedItemForDetail.name || Object.values(selectedItemForDetail)[1]}</h2>
                       <p className="text-sm text-gray-500">{selectedItemForDetail.model || Object.values(selectedItemForDetail)[2]}</p>
@@ -528,7 +562,13 @@ function App() {
                     <h3 className="text-lg font-bold text-gray-900">維修與異動紀錄</h3>
                   </div>
 
-                  <form onSubmit={handleAddLog} className="flex gap-2">
+                  <form onSubmit={handleAddLog} className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                    <input 
+                      type="date"
+                      value={newLog.date}
+                      onChange={e => setNewLog({...newLog, date: e.target.value})}
+                      className="text-xs border rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-blue-500"
+                    />
                     <select 
                       value={newLog.type}
                       onChange={e => setNewLog({...newLog, type: e.target.value})}
@@ -545,36 +585,45 @@ function App() {
                       placeholder="輸入紀錄內容..."
                       value={newLog.detail}
                       onChange={e => setNewLog({...newLog, detail: e.target.value})}
-                      className="flex-grow text-xs border rounded-lg px-3 py-1 outline-none focus:ring-1 focus:ring-blue-500"
+                      className="text-xs border rounded-lg px-3 py-1 outline-none focus:ring-1 focus:ring-blue-500"
                     />
                     <button 
                       disabled={isLogAdding}
                       className="bg-blue-600 text-white px-4 py-1 rounded-lg text-xs font-bold hover:bg-blue-700 disabled:opacity-50"
                     >
-                      {isLogAdding ? '...' : '新增'}
+                      {isLogAdding ? '...' : '新增紀錄'}
                     </button>
                   </form>
 
                   <div className="space-y-3">
-                    {itemLogs.length > 0 ? itemLogs.map((log, lidx) => (
-                      <div key={log.id || lidx} className="flex items-start gap-3 p-3 bg-white border rounded-lg group">
-                        <div className="mt-1">
-                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${log.type === '維修' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
-                            {log.type}
-                          </span>
+                    {itemLogs.length > 0 ? itemLogs.map((log, lidx) => {
+                      const logDate = log.date || Object.values(log)[2];
+                      const purchaseDate = selectedItemForDetail.purchase_date || Object.values(selectedItemForDetail)[4];
+                      const usageAtLog = calculateDuration(purchaseDate, logDate);
+
+                      return (
+                        <div key={log.id || lidx} className="flex items-start gap-3 p-3 bg-white border rounded-lg group">
+                          <div className="mt-1">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${log.type === '維修' ? 'bg-red-50 text-red-600' : 'bg-green-50 text-green-600'}`}>
+                              {log.type}
+                            </span>
+                          </div>
+                          <div className="flex-grow">
+                            <p className="text-sm text-gray-700">{log.detail}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <p className="text-[10px] text-gray-400">{formatDate(logDate)}</p>
+                              <span className="text-[10px] text-blue-500 font-medium">使用滿 {usageAtLog}</span>
+                            </div>
+                          </div>
+                          <button 
+                            onClick={() => handleDeleteLog(log.id || Object.values(log)[0])}
+                            className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
+                          >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                          </button>
                         </div>
-                        <div className="flex-grow">
-                          <p className="text-sm text-gray-700">{log.detail}</p>
-                          <p className="text-[10px] text-gray-400 mt-1">{formatDate(log.date)}</p>
-                        </div>
-                        <button 
-                          onClick={() => handleDeleteLog(log.id || Object.values(log)[0])}
-                          className="opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-500 transition-opacity"
-                        >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
-                      </div>
-                    )) : (
+                      );
+                    }) : (
                       <p className="text-center py-4 text-gray-400 text-sm">尚無紀錄</p>
                     )}
                   </div>
