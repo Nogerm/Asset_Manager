@@ -246,13 +246,23 @@ function App() {
       img.src = reader.result;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX = 400;
+        // 降低解析度到 200px 最大寬高，縮圖在此尺寸極為清晰且檔案大小在 3-8KB，絕對不超限
+        const MAX = 200;
         let w = img.width, h = img.height;
         if (w > h) { if (w > MAX) { h *= MAX / w; w = MAX; } }
         else { if (h > MAX) { w *= MAX / h; h = MAX; } }
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        const base64 = canvas.toDataURL('image/jpeg', 0.7);
+        
+        // 降低壓縮質量至 0.6 以獲得最佳大小效能比
+        const base64 = canvas.toDataURL('image/jpeg', 0.6);
+        
+        // 檢測是否超過 Google Sheets 儲存格的最大字元長度 (預留安全範圍 48,000 字元)
+        if (base64.length > 48000) {
+          alert("圖片過於複雜，為避免寫入資料庫失敗，請更換另一張照片！");
+          return;
+        }
+        
         if (target === 'new') setNewItem({ ...newItem, thumbnail: base64 });
         else handleUpdateThumbnail(base64);
       };
@@ -261,17 +271,23 @@ function App() {
   };
 
   const handleUpdateThumbnail = async (base64) => {
-    if (!selectedItemForDetail) return;
+    if (!selectedItemForDetail || isUpdatingField) return;
+    setIsUpdatingField(true);
     try {
       const res = await fetch(GAS_URL, {
         method: "POST",
         body: JSON.stringify({ action: "updateItem", id: selectedItemForDetail.id, thumbnail: base64 })
       });
-      if ((await res.json()).success) {
+      const json = await res.json();
+      if (json.success) {
         setSelectedItemForDetail({ ...selectedItemForDetail, thumbnail: base64 });
         fetchItems();
       }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    } finally {
+      setIsUpdatingField(false);
+    }
   };
 
   const handleAddItem = async (e) => {
@@ -549,12 +565,21 @@ function App() {
           <div className="relative bg-white rounded-[24px] shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 sm:p-6 border border-gray-100">
             <div className="flex justify-between items-start mb-5">
               <div className="flex gap-3 items-center">
-                <div className="relative group/edit shadow-md rounded-xl overflow-hidden shrink-0">
-                  {selectedItemForDetail.thumbnail ? <img src={selectedItemForDetail.thumbnail} className="w-16 h-16 object-cover" /> : <div className="w-16 h-16 bg-gray-50 flex items-center justify-center text-gray-300"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
-                  <label className="absolute inset-0 bg-blue-600/60 flex items-center justify-center opacity-0 group-hover/edit:opacity-100 transition-opacity cursor-pointer">
-                    <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'edit')} />
-                    <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /></svg>
-                  </label>
+                <div className="relative shadow-md rounded-xl overflow-hidden shrink-0 w-16 h-16">
+                  {selectedItemForDetail.thumbnail ? <img src={selectedItemForDetail.thumbnail} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gray-50 flex items-center justify-center text-gray-300"><svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg></div>}
+                  {isUpdatingField ? (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    </div>
+                  ) : (
+                    <label className="absolute inset-0 bg-blue-600/60 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
+                      <input type="file" accept="image/*" className="hidden" onChange={e => handleImageUpload(e, 'edit')} />
+                      <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /></svg>
+                    </label>
+                  )}
                 </div>
                 <div>
                   <h2 className="text-lg font-bold text-gray-800">{selectedItemForDetail.name}</h2>
