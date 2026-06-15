@@ -29,6 +29,8 @@ function App() {
   const [editPriceVal, setEditPriceVal] = useState('');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editDescVal, setEditDescVal] = useState('');
+  const [tempCategories, setTempCategories] = useState([]);
+  const [isSavingCategoriesOrder, setIsSavingCategoriesOrder] = useState(false);
 
   const [newItem, setNewItem] = useState({
     name: '',
@@ -75,6 +77,17 @@ function App() {
     };
     initApp();
   }, []);
+
+  useEffect(() => {
+    if (isSettingsOpen) {
+      const sorted = [...categories].sort((a, b) => {
+        const orderA = a.sort_order !== undefined ? Number(a.sort_order) : 9999;
+        const orderB = b.sort_order !== undefined ? Number(b.sort_order) : 9999;
+        return orderA - orderB;
+      });
+      setTempCategories(sorted);
+    }
+  }, [isSettingsOpen, categories]);
 
   const fetchItems = async () => {
     try {
@@ -337,17 +350,25 @@ function App() {
     return orderedGroups;
   }, [filteredItems, sortedCategories]);
 
-  const handleMoveCategory = async (index, direction) => {
-    const newCats = [...sortedCategories];
-    const targetIdx = index + direction;
-    if (targetIdx < 0 || targetIdx >= newCats.length) return;
+  const handleMoveCategoryLocal = (index, direction) => {
+    const nextIdx = index + direction;
+    if (nextIdx < 0 || nextIdx >= tempCategories.length) return;
+    
+    const updated = [...tempCategories];
+    const temp = updated[index];
+    updated[index] = updated[nextIdx];
+    updated[nextIdx] = temp;
+    
+    setTempCategories(updated);
+  };
+
+  const handleSaveCategoriesOrder = async () => {
+    if (isSavingCategoriesOrder) return;
+    setIsSavingCategoriesOrder(true);
     
     const orders = {};
-    newCats.forEach((cat, idx) => {
-      let finalIdx = idx;
-      if (idx === index) finalIdx = targetIdx;
-      else if (idx === targetIdx) finalIdx = index;
-      orders[cat.id || Object.values(cat)[0]] = finalIdx;
+    tempCategories.forEach((cat, idx) => {
+      orders[cat.id || Object.values(cat)[0]] = idx;
     });
     
     try {
@@ -355,10 +376,16 @@ function App() {
         method: "POST",
         body: JSON.stringify({ action: "updateCategoriesOrder", orders })
       });
-      if ((await res.json()).success) {
-        fetchCategories();
+      const json = await res.json();
+      if (json.success) {
+        await fetchCategories();
+        setIsSettingsOpen(false);
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSavingCategoriesOrder(false);
+    }
   };
 
   const calculateDuration = (start, end) => {
@@ -709,17 +736,18 @@ function App() {
               <button onClick={handleAddCategory} className="px-4 bg-gray-900 text-white text-xs font-bold rounded-xl">新增</button>
             </div>
             <div className="max-h-40 overflow-y-auto space-y-1">
-              {sortedCategories.map((cat, idx) => (
-                <div key={idx} className="flex items-center justify-between p-2 text-sm text-gray-600 bg-gray-50 rounded-lg">
+              {tempCategories.map((cat, idx) => (
+                <div key={cat.id || idx} className="flex items-center justify-between p-2 text-sm text-gray-600 bg-gray-50 rounded-lg">
                   <span>{cat.name || Object.values(cat)[1]}</span>
                   <div className="flex gap-1 shrink-0">
-                    <button disabled={idx === 0} onClick={() => handleMoveCategory(idx, -1)} className="w-6 h-6 flex items-center justify-center bg-white border rounded text-xs hover:text-blue-600 disabled:opacity-30 transition-all font-bold">▲</button>
-                    <button disabled={idx === sortedCategories.length - 1} onClick={() => handleMoveCategory(idx, 1)} className="w-6 h-6 flex items-center justify-center bg-white border rounded text-xs hover:text-blue-600 disabled:opacity-30 transition-all font-bold">▼</button>
+                    <button type="button" disabled={idx === 0} onClick={() => handleMoveCategoryLocal(idx, -1)} className="w-6 h-6 flex items-center justify-center bg-white border rounded text-xs hover:text-blue-600 disabled:opacity-30 transition-all font-bold">▲</button>
+                    <button type="button" disabled={idx === tempCategories.length - 1} onClick={() => handleMoveCategoryLocal(idx, 1)} className="w-6 h-6 flex items-center justify-center bg-white border rounded text-xs hover:text-blue-600 disabled:opacity-30 transition-all font-bold">▼</button>
                   </div>
                 </div>
               ))}
             </div>
-            <button onClick={() => setIsSettingsOpen(false)} className="w-full mt-4 py-2 text-sm font-bold text-gray-400">關閉</button>
+            <button disabled={isSavingCategoriesOrder} onClick={handleSaveCategoriesOrder} className="w-full mt-4 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-lg shadow-blue-500/10 active:scale-[0.98] transition-all">{isSavingCategoriesOrder ? '儲存中...' : '儲存順序'}</button>
+            <button onClick={() => setIsSettingsOpen(false)} className="w-full mt-2 py-1.5 text-sm font-bold text-gray-400 hover:text-gray-600 transition-colors">取消</button>
           </div>
         </div>
       )}
