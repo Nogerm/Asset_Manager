@@ -31,6 +31,10 @@ function App() {
   const [editDescVal, setEditDescVal] = useState('');
   const [tempCategories, setTempCategories] = useState([]);
   const [isSavingCategoriesOrder, setIsSavingCategoriesOrder] = useState(false);
+  const [isAddingItem, setIsAddingItem] = useState(false);
+  const [isAddingCategory, setIsAddingCategory] = useState(false);
+  const [isDeletingLog, setIsDeletingLog] = useState(false);
+  const [isUpdatingField, setIsUpdatingField] = useState(false);
 
   const [newItem, setNewItem] = useState({
     name: '',
@@ -135,7 +139,8 @@ function App() {
   };
 
   const handleUpdateItemField = async (field, value) => {
-    if (!selectedItemForDetail) return false;
+    if (!selectedItemForDetail || isUpdatingField) return false;
+    setIsUpdatingField(true);
     try {
       const res = await fetch(GAS_URL, {
         method: "POST",
@@ -153,6 +158,8 @@ function App() {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsUpdatingField(false);
     }
     return false;
   };
@@ -193,7 +200,7 @@ function App() {
 
   const handleAddLog = async (e) => {
     e.preventDefault();
-    if (!newLog.detail) return;
+    if (!newLog.detail || isLogAdding) return;
     setIsLogAdding(true);
     try {
       const res = await fetch(GAS_URL, {
@@ -214,14 +221,20 @@ function App() {
   };
 
   const handleDeleteLog = async (logId) => {
+    if (isDeletingLog) return;
     if (!window.confirm("確定刪除？")) return;
+    setIsDeletingLog(true);
     try {
       const res = await fetch(GAS_URL, {
         method: "POST",
         body: JSON.stringify({ action: "deleteLog", id: logId })
       });
       if ((await res.json()).success) fetchLogs(selectedItemForDetail.id);
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    } finally {
+      setIsDeletingLog(false);
+    }
   };
 
   const handleImageUpload = (e, target) => {
@@ -263,22 +276,34 @@ function App() {
 
   const handleAddItem = async (e) => {
     e.preventDefault();
+    if (isAddingItem) return;
+    setIsAddingItem(true);
     try {
       const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "addItem", ...newItem }) });
-      if ((await res.json()).success) {
+      const json = await res.json();
+      if (json.success) {
         setIsAddModalOpen(false);
         setNewItem({ name: '', model: '', category: '', status: '', purchase_date: new Date().toISOString().split('T')[0], description: '', thumbnail: '', price: '' });
         fetchItems();
       }
-    } catch (err) { console.error(err); }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsAddingItem(false);
+    }
   };
 
   const handleAddCategory = async () => {
-    if (!newCategoryName.trim()) return;
+    if (!newCategoryName.trim() || isAddingCategory) return;
+    setIsAddingCategory(true);
     try {
       const res = await fetch(GAS_URL, { method: "POST", body: JSON.stringify({ action: "addCategory", name: newCategoryName.trim() }) });
       if ((await res.json()).success) { setNewCategoryName(''); fetchCategories(); }
-    } catch (err) { console.error(err); }
+    } catch (err) { 
+      console.error(err); 
+    } finally {
+      setIsAddingCategory(false);
+    }
   };
 
   const filteredItems = useMemo(() => {
@@ -556,21 +581,23 @@ function App() {
                     />
                     <button
                       type="button"
+                      disabled={isUpdatingField}
                       onClick={async () => {
                         const ok = await handleUpdateItemField('price', editPriceVal);
                         if (ok) setIsEditingPrice(false);
                       }}
-                      className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded text-[10px] font-bold"
+                      className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded text-[10px] font-bold disabled:bg-blue-400"
                     >
-                      ✓
+                      {isUpdatingField ? '...' : '✓'}
                     </button>
                     <button
                       type="button"
+                      disabled={isUpdatingField}
                       onClick={() => {
                         setIsEditingPrice(false);
                         setEditPriceVal(selectedItemForDetail.price);
                       }}
-                      className="w-5 h-5 flex items-center justify-center bg-gray-200 text-gray-500 rounded text-[10px] font-bold"
+                      className="w-5 h-5 flex items-center justify-center bg-gray-200 text-gray-500 rounded text-[10px] font-bold disabled:opacity-50"
                     >
                       ✕
                     </button>
@@ -651,21 +678,23 @@ function App() {
                     <div className="flex justify-end gap-1.5">
                       <button
                         type="button"
+                        disabled={isUpdatingField}
                         onClick={async () => {
                           const ok = await handleUpdateItemField('description', editDescVal);
                           if (ok) setIsEditingDesc(false);
                         }}
-                        className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[9px] font-bold"
+                        className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[9px] font-bold disabled:bg-blue-400"
                       >
-                        儲存
+                        {isUpdatingField ? '儲存中...' : '儲存'}
                       </button>
                       <button
                         type="button"
+                        disabled={isUpdatingField}
                         onClick={() => {
                           setIsEditingDesc(false);
                           setEditDescVal(selectedItemForDetail.description || "");
                         }}
-                        className="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg text-[9px] font-bold"
+                        className="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg text-[9px] font-bold disabled:opacity-50"
                       >
                         取消
                       </button>
@@ -703,7 +732,22 @@ function App() {
                 </div>
                 <div className="flex gap-2">
                   <input required placeholder="紀錄內容..." value={newLog.detail} onChange={e => setNewLog({...newLog, detail: e.target.value})} className="flex-grow h-9 px-3 bg-gray-50 rounded-lg text-[11px] outline-none" />
-                  <button disabled={isLogAdding} className="px-4 bg-gray-900 text-white text-[11px] font-bold rounded-lg">{isLogAdding ? '...' : '新增'}</button>
+                  <button
+                    disabled={isLogAdding}
+                    className="px-4 bg-gray-900 text-white text-[11px] font-bold rounded-lg flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isLogAdding ? (
+                      <>
+                        <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span>新增中</span>
+                      </>
+                    ) : (
+                      <span>新增</span>
+                    )}
+                  </button>
                 </div>
               </form>
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
@@ -732,8 +776,24 @@ function App() {
           <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-6">
             <h2 className="text-lg font-bold mb-4">分類管理</h2>
             <div className="flex gap-2 mb-4">
-              <input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="新分類..." className="flex-grow h-10 px-3 bg-gray-50 rounded-xl text-sm outline-none" />
-              <button onClick={handleAddCategory} className="px-4 bg-gray-900 text-white text-xs font-bold rounded-xl">新增</button>
+              <input disabled={isAddingCategory} value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="新分類..." className="flex-grow h-10 px-3 bg-gray-50 rounded-xl text-sm outline-none disabled:opacity-50" />
+              <button
+                disabled={isAddingCategory}
+                onClick={handleAddCategory}
+                className="px-4 bg-gray-900 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isAddingCategory ? (
+                  <>
+                    <svg className="animate-spin h-3.5 w-3.5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>...</span>
+                  </>
+                ) : (
+                  <span>新增</span>
+                )}
+              </button>
             </div>
             <div className="max-h-40 overflow-y-auto space-y-1">
               {tempCategories.map((cat, idx) => (
@@ -780,7 +840,23 @@ function App() {
                 {newItem.thumbnail ? <img src={newItem.thumbnail} className="w-full h-full object-cover rounded-xl" /> : <span className="text-xs text-gray-300 font-bold">點擊上傳縮圖</span>}
                 <input type="file" accept="image/*" onChange={e => handleImageUpload(e, 'new')} className="absolute inset-0 opacity-0 cursor-pointer" />
               </div>
-              <button type="submit" className="w-full h-11 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-500/20 mt-2">儲存</button>
+              <button
+                type="submit"
+                disabled={isAddingItem}
+                className="w-full h-11 bg-blue-600 text-white text-sm font-bold rounded-xl shadow-lg shadow-blue-500/20 mt-2 flex items-center justify-center gap-2 disabled:bg-blue-400 disabled:cursor-not-allowed active:scale-[0.99] transition-all"
+              >
+                {isAddingItem ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>儲存中...</span>
+                  </>
+                ) : (
+                  <span>儲存</span>
+                )}
+              </button>
             </form>
           </div>
         </div>
