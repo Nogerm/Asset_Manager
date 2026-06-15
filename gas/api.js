@@ -26,14 +26,28 @@ function doGet(e) {
     if (action === "getCategories") {
       const sheet = ss.getSheetByName("Categories");
       if (!sheet) return jsonResponse({ success: false, message: "Sheet 'Categories' not found" });
-      const data = sheet.getDataRange().getValues();
-      const headers = data[0];
+      let data = sheet.getDataRange().getValues();
+      let headers = data[0];
+      
+      // 自動升級資料表結構：如果沒有 sort_order 表頭，就加上
+      if (headers.length < 3 || headers[2] !== "sort_order") {
+        sheet.getRange(1, 3).setValue("sort_order");
+        data = sheet.getDataRange().getValues();
+        headers = data[0];
+      }
+
       const rows = data.slice(1);
-      const categories = rows.map(row => {
+      const categories = rows.map((row, rIdx) => {
         let obj = {};
         headers.forEach((header, index) => {
           obj[header] = row[index];
         });
+        // 確保 sort_order 有預設值，若沒有則使用其列索引作為預設排序
+        if (obj.sort_order === "" || obj.sort_order === undefined) {
+          obj.sort_order = rIdx + 1;
+        } else {
+          obj.sort_order = Number(obj.sort_order);
+        }
         return obj;
       });
       return jsonResponse({ success: true, data: categories });
@@ -115,8 +129,24 @@ function doPost(e) {
         return jsonResponse({ success: false, message: "分類已存在" });
       }
       const id = "cat_" + new Date().getTime();
-      sheet.appendRow([id, postData.name]);
+      const sortOrder = data.length; // 預設排序為目前列數
+      sheet.appendRow([id, postData.name, sortOrder]);
       return jsonResponse({ success: true, id: id });
+    }
+
+    // 8. 更新分類順序
+    if (action === "updateCategoriesOrder") {
+      const sheet = ss.getSheetByName("Categories");
+      const data = sheet.getDataRange().getValues();
+      const orders = postData.orders; // 格式: { cat_id: order_number, ... }
+      
+      for (let i = 1; i < data.length; i++) {
+        const catId = data[i][0];
+        if (orders[catId] !== undefined) {
+          sheet.getRange(i + 1, 3).setValue(orders[catId]);
+        }
+      }
+      return jsonResponse({ success: true });
     }
 
     // 3. 新增紀錄

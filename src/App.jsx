@@ -23,6 +23,12 @@ function App() {
   const [isLogAdding, setIsLogAdding] = useState(false);
   const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: new Date().toISOString().split('T')[0], price: '' });
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
+  const [itemSortKey, setItemSortKey] = useState('purchase_date');
+  const [itemSortDir, setItemSortDir] = useState('desc');
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [editPriceVal, setEditPriceVal] = useState('');
+  const [isEditingDesc, setIsEditingDesc] = useState(false);
+  const [editDescVal, setEditDescVal] = useState('');
 
   const [newItem, setNewItem] = useState({
     name: '',
@@ -108,7 +114,34 @@ function App() {
       price: item.price || item.Price || Object.values(item)[9] || ""
     };
     setSelectedItemForDetail(normalizedItem);
+    setIsEditingPrice(false);
+    setIsEditingDesc(false);
+    setEditPriceVal(normalizedItem.price);
+    setEditDescVal(normalizedItem.description || "");
     fetchLogs(normalizedItem.id);
+  };
+
+  const handleUpdateItemField = async (field, value) => {
+    if (!selectedItemForDetail) return false;
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "updateItem",
+          id: selectedItemForDetail.id,
+          [field]: value
+        })
+      });
+      const json = await res.json();
+      if (json.success) {
+        setSelectedItemForDetail(prev => ({ ...prev, [field]: value }));
+        fetchItems();
+        return true;
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    return false;
   };
 
   const handleToggleStatus = async () => {
@@ -243,6 +276,91 @@ function App() {
     });
   }, [items, searchQuery, selectedCategory]);
 
+  const sortedCategories = useMemo(() => {
+    return [...categories].sort((a, b) => {
+      const orderA = a.sort_order !== undefined ? Number(a.sort_order) : 9999;
+      const orderB = b.sort_order !== undefined ? Number(b.sort_order) : 9999;
+      return orderA - orderB;
+    });
+  }, [categories]);
+
+  const sortItems = (itemsList) => {
+    return [...itemsList].sort((a, b) => {
+      let valA = a[itemSortKey] || Object.values(a)[itemSortKey === 'purchase_date' ? 4 : (itemSortKey === 'name' ? 1 : 9)] || '';
+      let valB = b[itemSortKey] || Object.values(b)[itemSortKey === 'purchase_date' ? 4 : (itemSortKey === 'name' ? 1 : 9)] || '';
+      
+      if (itemSortKey === 'price') {
+        const numA = Number(valA) || 0;
+        const numB = Number(valB) || 0;
+        return itemSortDir === 'asc' ? numA - numB : numB - numA;
+      }
+      
+      if (itemSortKey === 'purchase_date') {
+        const dateA = valA ? new Date(valA) : new Date(0);
+        const dateB = valB ? new Date(valB) : new Date(0);
+        return itemSortDir === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      
+      valA = String(valA).toLowerCase();
+      valB = String(valB).toLowerCase();
+      if (valA < valB) return itemSortDir === 'asc' ? -1 : 1;
+      if (valA > valB) return itemSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  };
+
+  const groupedItems = useMemo(() => {
+    const groups = filteredItems.reduce((acc, i) => {
+      const c = i.category || i.Category || Object.values(i)[3] || "未分類";
+      if (!acc[c]) acc[c] = [];
+      acc[c].push(i);
+      return acc;
+    }, {});
+    
+    const orderedGroups = [];
+    const processedCats = new Set();
+    
+    sortedCategories.forEach(cat => {
+      const catName = cat.name || Object.values(cat)[1];
+      if (groups[catName]) {
+        orderedGroups.push({ category: catName, items: groups[catName] });
+        processedCats.add(catName);
+      }
+    });
+    
+    Object.keys(groups).forEach(catName => {
+      if (!processedCats.has(catName)) {
+        orderedGroups.push({ category: catName, items: groups[catName] });
+      }
+    });
+    
+    return orderedGroups;
+  }, [filteredItems, sortedCategories]);
+
+  const handleMoveCategory = async (index, direction) => {
+    const newCats = [...sortedCategories];
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= newCats.length) return;
+    
+    const orders = {};
+    newCats.forEach((cat, idx) => {
+      let finalIdx = idx;
+      if (idx === index) finalIdx = targetIdx;
+      else if (idx === targetIdx) finalIdx = index;
+      orders[cat.id || Object.values(cat)[0]] = finalIdx;
+    });
+    
+    try {
+      const res = await fetch(GAS_URL, {
+        method: "POST",
+        body: JSON.stringify({ action: "updateCategoriesOrder", orders })
+      });
+      if ((await res.json()).success) {
+        fetchCategories();
+      }
+    } catch (err) { console.error(err); }
+  };
+
   const calculateDuration = (start, end) => {
     if (!start) return '';
     const diff = Math.abs((end ? new Date(end) : new Date()) - new Date(start));
@@ -283,19 +401,32 @@ function App() {
             <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="搜尋資產..." className="w-full h-11 pl-10 pr-4 bg-white border-none rounded-xl text-sm shadow-sm focus:ring-2 focus:ring-blue-600 transition-all" />
             <svg className="absolute left-3.5 top-3 h-4 w-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
           </div>
-          <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-50">
-            {['grouped', 'grid', 'list'].map(m => (
-              <button key={m} onClick={() => setViewMode(m)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === m ? 'bg-gray-900 text-white shadow-md' : 'text-gray-400 hover:text-black'}`}>{m === 'grouped' ? '分組' : m === 'grid' ? '網格' : '清單'}</button>
-            ))}
+          <div className="flex gap-2 shrink-0">
+            <div className="flex bg-white p-1 rounded-xl shadow-sm border border-gray-50">
+              {['grouped', 'grid', 'list'].map(m => (
+                <button key={m} onClick={() => setViewMode(m)} className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === m ? 'bg-gray-900 text-white shadow-md' : 'text-gray-400 hover:text-black'}`}>{m === 'grouped' ? '分組' : m === 'grid' ? '網格' : '清單'}</button>
+              ))}
+            </div>
+            <div className="flex gap-1.5 bg-white p-1.5 rounded-xl shadow-sm border border-gray-50 items-center">
+              <select value={itemSortKey} onChange={e => setItemSortKey(e.target.value)} className="px-2 bg-transparent text-xs font-bold outline-none border-none cursor-pointer">
+                <option value="purchase_date">依購買日期</option>
+                <option value="name">依資產名稱</option>
+                <option value="price">依金額價格</option>
+              </select>
+              <button onClick={() => setItemSortDir(p => p === 'asc' ? 'desc' : 'asc')} className="w-6 h-6 flex items-center justify-center rounded-lg text-gray-400 hover:text-blue-600 hover:bg-gray-50 transition-all">
+                {itemSortDir === 'asc' ? (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4h13M3 8h9M3 12h5m0 0v-8m0 0L5 8m3-4l3 3" /></svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 4h13M3 8h9M3 12h5m0 0v8m0 0l3-3m-3 3L5 13" /></svg>
+                )}
+              </button>
+            </div>
           </div>
         </div>
 
         <div className="space-y-3">
           {viewMode === 'grouped' ? (
-            Object.entries(filteredItems.reduce((acc, i) => {
-              const c = i.category || i.Category || Object.values(i)[3] || "未分類";
-              if (!acc[c]) acc[c] = []; acc[c].push(i); return acc;
-            }, {})).map(([cat, items]) => (
+            groupedItems.map(({ category: cat, items }) => (
               <div key={cat} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <button onClick={() => setExpandedCategories(p => ({ ...p, [cat]: !p[cat] }))} className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors text-left">
                   <div className="flex items-center gap-3">
@@ -307,7 +438,7 @@ function App() {
                 </button>
                 {expandedCategories[cat] && (
                   <div className="px-4 pb-4 space-y-1">
-                    {items.map((item, idx) => {
+                    {sortItems(items).map((item, idx) => {
                       const status = item.status || item.Status || Object.values(item)[5];
                       const pDate = item.purchase_date || item.PurchaseDate || Object.values(item)[4];
                       const eDate = item.end_date || item.EndDate || Object.values(item)[6];
@@ -332,7 +463,7 @@ function App() {
             ))
           ) : (
             <div className={viewMode === 'grid' ? "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4" : "space-y-2"}>
-              {filteredItems.map((item, idx) => {
+              {sortItems(filteredItems).map((item, idx) => {
                 const status = item.status || item.Status || Object.values(item)[5];
                 const pDate = item.purchase_date || item.PurchaseDate || Object.values(item)[4];
                 const eDate = item.end_date || item.EndDate || Object.values(item)[6];
@@ -388,11 +519,56 @@ function App() {
               </div>
               <div>
                 <p className="text-gray-400 font-bold uppercase mb-0.5">價格</p>
-                <p className="font-bold text-red-600">
-                  {selectedItemForDetail.price !== "" && selectedItemForDetail.price !== undefined
-                    ? `$${Number(selectedItemForDetail.price).toLocaleString()}`
-                    : "—"}
-                </p>
+                {isEditingPrice ? (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <input
+                      type="number"
+                      value={editPriceVal}
+                      onChange={e => setEditPriceVal(e.target.value)}
+                      className="w-20 h-6 px-1.5 bg-white border border-gray-200 rounded text-[10px] outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const ok = await handleUpdateItemField('price', editPriceVal);
+                        if (ok) setIsEditingPrice(false);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded text-[10px] font-bold"
+                    >
+                      ✓
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsEditingPrice(false);
+                        setEditPriceVal(selectedItemForDetail.price);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-gray-200 text-gray-500 rounded text-[10px] font-bold"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="font-bold text-red-600">
+                      {selectedItemForDetail.price !== "" && selectedItemForDetail.price !== undefined
+                        ? `$${Number(selectedItemForDetail.price).toLocaleString()}`
+                        : "—"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditPriceVal(selectedItemForDetail.price);
+                        setIsEditingPrice(true);
+                      }}
+                      className="text-gray-300 hover:text-blue-600 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <p className="text-gray-400 font-bold uppercase mb-0.5">狀態</p>
@@ -437,7 +613,56 @@ function App() {
               )}
               <div className="col-span-2 border-t pt-3">
                 <p className="text-gray-400 font-bold uppercase mb-0.5">備註</p>
-                <p className="text-gray-600 italic">"{selectedItemForDetail.description || "無備註"}"</p>
+                {isEditingDesc ? (
+                  <div className="space-y-1.5 mt-1">
+                    <textarea
+                      value={editDescVal}
+                      onChange={e => setEditDescVal(e.target.value)}
+                      placeholder="輸入備註內容..."
+                      className="w-full p-2 bg-white border border-gray-200 rounded-xl text-[10px] outline-none min-h-[50px] resize-none"
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const ok = await handleUpdateItemField('description', editDescVal);
+                          if (ok) setIsEditingDesc(false);
+                        }}
+                        className="px-2.5 py-1 bg-blue-600 text-white rounded-lg text-[9px] font-bold"
+                      >
+                        儲存
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsEditingDesc(false);
+                          setEditDescVal(selectedItemForDetail.description || "");
+                        }}
+                        className="px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg text-[9px] font-bold"
+                      >
+                        取消
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-start justify-between gap-2 mt-0.5">
+                    <p className="text-gray-600 italic">
+                      {selectedItemForDetail.description ? `"${selectedItemForDetail.description}"` : "無備註"}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditDescVal(selectedItemForDetail.description || "");
+                        setIsEditingDesc(true);
+                      }}
+                      className="text-gray-300 hover:text-blue-600 shrink-0 mt-0.5"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -484,7 +709,15 @@ function App() {
               <button onClick={handleAddCategory} className="px-4 bg-gray-900 text-white text-xs font-bold rounded-xl">新增</button>
             </div>
             <div className="max-h-40 overflow-y-auto space-y-1">
-              {categories.map((cat, idx) => <div key={idx} className="p-2 text-sm text-gray-600 bg-gray-50 rounded-lg">{cat.name || Object.values(cat)[1]}</div>)}
+              {sortedCategories.map((cat, idx) => (
+                <div key={idx} className="flex items-center justify-between p-2 text-sm text-gray-600 bg-gray-50 rounded-lg">
+                  <span>{cat.name || Object.values(cat)[1]}</span>
+                  <div className="flex gap-1 shrink-0">
+                    <button disabled={idx === 0} onClick={() => handleMoveCategory(idx, -1)} className="w-6 h-6 flex items-center justify-center bg-white border rounded text-xs hover:text-blue-600 disabled:opacity-30 transition-all font-bold">▲</button>
+                    <button disabled={idx === sortedCategories.length - 1} onClick={() => handleMoveCategory(idx, 1)} className="w-6 h-6 flex items-center justify-center bg-white border rounded text-xs hover:text-blue-600 disabled:opacity-30 transition-all font-bold">▼</button>
+                  </div>
+                </div>
+              ))}
             </div>
             <button onClick={() => setIsSettingsOpen(false)} className="w-full mt-4 py-2 text-sm font-bold text-gray-400">關閉</button>
           </div>
@@ -502,7 +735,7 @@ function App() {
                 <input placeholder="型號" value={newItem.model} onChange={e => setNewItem({...newItem, model: e.target.value})} className="h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
                 <select required value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none appearance-none" style={selectStyle}>
                   <option value="">選擇分類</option>
-                  {categories.map((cat, idx) => <option key={idx}>{cat.name || Object.values(cat)[1]}</option>)}
+                  {sortedCategories.map((cat, idx) => <option key={idx}>{cat.name || Object.values(cat)[1]}</option>)}
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-2">
