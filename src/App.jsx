@@ -4,6 +4,16 @@ import liff from '@line/liff';
 const GAS_URL = import.meta.env.VITE_GAS_URL;
 const LIFF_ID = import.meta.env.VITE_LIFF_ID;
 
+const formatDate = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  if (isNaN(date.getTime())) return '';
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+};
+
 function App() {
   const [currentTab, setCurrentTab] = useState('items'); 
   const [items, setItems] = useState([]);
@@ -21,7 +31,7 @@ function App() {
   const [selectedItemForDetail, setSelectedItemForDetail] = useState(null);
   const [itemLogs, setItemLogs] = useState([]);
   const [isLogAdding, setIsLogAdding] = useState(false);
-  const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: new Date().toISOString().split('T')[0], price: '' });
+  const [newLog, setNewLog] = useState({ type: '維修', detail: '', date: formatDate(new Date()), price: '' });
   const [isStatusUpdating, setIsStatusUpdating] = useState(false);
   const [itemSortKey, setItemSortKey] = useState('purchase_date');
   const [itemSortDir, setItemSortDir] = useState('desc');
@@ -29,6 +39,8 @@ function App() {
   const [editPriceVal, setEditPriceVal] = useState('');
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [editDescVal, setEditDescVal] = useState('');
+  const [isEditingDate, setIsEditingDate] = useState(false);
+  const [editDateVal, setEditDateVal] = useState('');
   const [tempCategories, setTempCategories] = useState([]);
   const [isSavingCategoriesOrder, setIsSavingCategoriesOrder] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -41,7 +53,7 @@ function App() {
     model: '',
     category: '',
     status: '',
-    purchase_date: new Date().toISOString().split('T')[0],
+    purchase_date: formatDate(new Date()),
     description: '',
     thumbnail: '',
     price: ''
@@ -133,8 +145,10 @@ function App() {
     setSelectedItemForDetail(normalizedItem);
     setIsEditingPrice(false);
     setIsEditingDesc(false);
+    setIsEditingDate(false);
     setEditPriceVal(normalizedItem.price);
     setEditDescVal(normalizedItem.description || "");
+    setEditDateVal(formatDate(normalizedItem.purchase_date));
     fetchLogs(normalizedItem.id);
   };
 
@@ -169,7 +183,7 @@ function App() {
     setIsStatusUpdating(true);
     const isCurrentlyActive = selectedItemForDetail.status === '使用中';
     const newStatus = isCurrentlyActive ? '未使用' : '使用中';
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = formatDate(new Date());
     const newEndDate = isCurrentlyActive ? todayStr : '';
 
     try {
@@ -299,7 +313,7 @@ function App() {
       const json = await res.json();
       if (json.success) {
         setIsAddModalOpen(false);
-        setNewItem({ name: '', model: '', category: '', status: '', purchase_date: new Date().toISOString().split('T')[0], description: '', thumbnail: '', price: '' });
+        setNewItem({ name: '', model: '', category: '', status: '', purchase_date: formatDate(new Date()), description: '', thumbnail: '', price: '' });
         fetchItems();
       }
     } catch (err) {
@@ -438,7 +452,6 @@ function App() {
     return `${(days / 365).toFixed(1)} 年`;
   };
 
-  const formatDate = (d) => d ? new Date(d).toISOString().split('T')[0] : '';
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen bg-white">
@@ -592,7 +605,54 @@ function App() {
             <div className="grid grid-cols-2 gap-3 mb-6 bg-gray-50 p-4 rounded-2xl text-[11px]">
               <div>
                 <p className="text-gray-400 font-bold uppercase mb-0.5">購買日</p>
-                <p className="font-bold text-gray-700">{formatDate(selectedItemForDetail.purchase_date)}</p>
+                {isEditingDate ? (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <input
+                      type="date"
+                      value={editDateVal}
+                      onChange={e => setEditDateVal(e.target.value)}
+                      className="h-6 px-1 bg-white border border-gray-200 rounded text-[9px] outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={isUpdatingField}
+                      onClick={async () => {
+                        const ok = await handleUpdateItemField('purchase_date', editDateVal);
+                        if (ok) setIsEditingDate(false);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded text-[10px] font-bold disabled:bg-blue-400"
+                    >
+                      {isUpdatingField ? '...' : '✓'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isUpdatingField}
+                      onClick={() => {
+                        setIsEditingDate(false);
+                        setEditDateVal(formatDate(selectedItemForDetail.purchase_date));
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-gray-200 text-gray-500 rounded text-[10px] font-bold disabled:opacity-50"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="font-bold text-gray-700">{formatDate(selectedItemForDetail.purchase_date)}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditDateVal(formatDate(selectedItemForDetail.purchase_date));
+                        setIsEditingDate(true);
+                      }}
+                      className="text-gray-300 hover:text-blue-600 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
               </div>
               <div>
                 <p className="text-gray-400 font-bold uppercase mb-0.5">價格</p>
