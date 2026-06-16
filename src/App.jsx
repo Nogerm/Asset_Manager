@@ -43,6 +43,8 @@ function App() {
   const [editDateVal, setEditDateVal] = useState('');
   const [isEditingModel, setIsEditingModel] = useState(false);
   const [editModelVal, setEditModelVal] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameVal, setEditNameVal] = useState('');
   const [tempCategories, setTempCategories] = useState([]);
   const [isSavingCategoriesOrder, setIsSavingCategoriesOrder] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -149,10 +151,12 @@ function App() {
     setIsEditingDesc(false);
     setIsEditingDate(false);
     setIsEditingModel(false);
+    setIsEditingName(false);
     setEditPriceVal(normalizedItem.price);
     setEditDescVal(normalizedItem.description || "");
     setEditDateVal(formatDate(normalizedItem.purchase_date));
     setEditModelVal(normalizedItem.model || "");
+    setEditNameVal(normalizedItem.name || "");
     fetchLogs(normalizedItem.id);
   };
 
@@ -599,7 +603,57 @@ function App() {
                   )}
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">{selectedItemForDetail.name}</h2>
+                  {isEditingName ? (
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        required
+                        value={editNameVal}
+                        onChange={e => setEditNameVal(e.target.value)}
+                        placeholder="資產名稱..."
+                        className="h-8 px-2 bg-white border border-gray-200 rounded-lg text-sm font-bold outline-none"
+                      />
+                      <button
+                        type="button"
+                        disabled={isUpdatingField || !editNameVal.trim()}
+                        onClick={async () => {
+                          if (!editNameVal.trim()) return;
+                          const ok = await handleUpdateItemField('name', editNameVal.trim());
+                          if (ok) setIsEditingName(false);
+                        }}
+                        className="w-6 h-6 flex items-center justify-center bg-blue-600 text-white rounded-lg text-xs font-bold disabled:bg-blue-400 shrink-0"
+                      >
+                        {isUpdatingField ? '...' : '✓'}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={isUpdatingField}
+                        onClick={() => {
+                          setIsEditingName(false);
+                          setEditNameVal(selectedItemForDetail.name || "");
+                        }}
+                        className="w-6 h-6 flex items-center justify-center bg-gray-200 text-gray-500 rounded-lg text-xs font-bold disabled:opacity-50 shrink-0"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <h2 className="text-lg font-bold text-gray-800">{selectedItemForDetail.name}</h2>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditNameVal(selectedItemForDetail.name || "");
+                          setIsEditingName(true);
+                        }}
+                        className="text-gray-300 hover:text-blue-600 transition-colors"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider bg-gray-50 inline-block px-1.5 py-0.5 rounded mt-1">{selectedItemForDetail.category}</p>
                 </div>
               </div>
