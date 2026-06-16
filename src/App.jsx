@@ -41,6 +41,8 @@ function App() {
   const [editDescVal, setEditDescVal] = useState('');
   const [isEditingDate, setIsEditingDate] = useState(false);
   const [editDateVal, setEditDateVal] = useState('');
+  const [isEditingModel, setIsEditingModel] = useState(false);
+  const [editModelVal, setEditModelVal] = useState('');
   const [tempCategories, setTempCategories] = useState([]);
   const [isSavingCategoriesOrder, setIsSavingCategoriesOrder] = useState(false);
   const [isAddingItem, setIsAddingItem] = useState(false);
@@ -146,9 +148,11 @@ function App() {
     setIsEditingPrice(false);
     setIsEditingDesc(false);
     setIsEditingDate(false);
+    setIsEditingModel(false);
     setEditPriceVal(normalizedItem.price);
     setEditDescVal(normalizedItem.description || "");
     setEditDateVal(formatDate(normalizedItem.purchase_date));
+    setEditModelVal(normalizedItem.model || "");
     fetchLogs(normalizedItem.id);
   };
 
@@ -603,6 +607,58 @@ function App() {
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-6 bg-gray-50 p-4 rounded-2xl text-[11px]">
+              <div>
+                <p className="text-gray-400 font-bold uppercase mb-0.5">型號</p>
+                {isEditingModel ? (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <input
+                      type="text"
+                      value={editModelVal}
+                      onChange={e => setEditModelVal(e.target.value)}
+                      placeholder="型號..."
+                      className="w-20 h-6 px-1.5 bg-white border border-gray-200 rounded text-[10px] outline-none"
+                    />
+                    <button
+                      type="button"
+                      disabled={isUpdatingField}
+                      onClick={async () => {
+                        const ok = await handleUpdateItemField('model', editModelVal);
+                        if (ok) setIsEditingModel(false);
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-blue-600 text-white rounded text-[10px] font-bold disabled:bg-blue-400"
+                    >
+                      {isUpdatingField ? '...' : '✓'}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isUpdatingField}
+                      onClick={() => {
+                        setIsEditingModel(false);
+                        setEditModelVal(selectedItemForDetail.model || "");
+                      }}
+                      className="w-5 h-5 flex items-center justify-center bg-gray-200 text-gray-500 rounded text-[10px] font-bold disabled:opacity-50"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <p className="font-bold text-gray-700">{selectedItemForDetail.model || "—"}</p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditModelVal(selectedItemForDetail.model || "");
+                        setIsEditingModel(true);
+                      }}
+                      className="text-gray-300 hover:text-blue-600 transition-colors"
+                    >
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  </div>
+                )}
+              </div>
               <div>
                 <p className="text-gray-400 font-bold uppercase mb-0.5">購買日</p>
                 {isEditingDate ? (
