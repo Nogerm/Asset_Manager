@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import liff from '@line/liff';
 
 const GAS_URL = import.meta.env.VITE_GAS_URL;
@@ -15,6 +15,10 @@ const formatDate = (d) => {
 };
 
 function App() {
+  const yearInputRef = useRef(null);
+  const monthInputRef = useRef(null);
+  const dayInputRef = useRef(null);
+
   const [currentTab, setCurrentTab] = useState('items'); 
   const [items, setItems] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -342,6 +346,94 @@ function App() {
     } finally {
       setIsAddingCategory(false);
     }
+  };
+
+  const handleQuickAddCategory = async () => {
+    if (isAddingCategory) return;
+    const catName = prompt("請輸入新分類名稱：");
+    if (!catName || !catName.trim()) return;
+    const trimmedName = catName.trim();
+    
+    // 1. 檢測若本地已存在該分類，則自動為其選中。
+    const existing = categories.find(cat => {
+      const name = cat.name || Object.values(cat)[1] || "";
+      return name.toLowerCase() === trimmedName.toLowerCase();
+    });
+    if (existing) {
+      const existingName = existing.name || Object.values(existing)[1] || "";
+      setNewItem(prev => ({ ...prev, category: existingName }));
+      alert(`分類「${existingName}」已存在，已自動選取。`);
+      return;
+    }
+
+    // 2. 若不存在，則發送 API 新增，成功後重新加載分類清單，並自動將該新分類設為目前選中狀態。
+    setIsAddingCategory(true);
+    try {
+      const res = await fetch(GAS_URL, { 
+        method: "POST", 
+        body: JSON.stringify({ action: "addCategory", name: trimmedName }) 
+      });
+      const json = await res.json();
+      if (json.success) {
+        // 更新分類清單
+        await fetchCategories();
+        // 自動將該新分類設為目前選中狀態
+        setNewItem(prev => ({ ...prev, category: trimmedName }));
+      } else {
+        alert("新增分類失敗：" + (json.message || "未知錯誤"));
+      }
+    } catch (err) { 
+      console.error(err); 
+      alert("新增分類時發生錯誤");
+    } finally {
+      setIsAddingCategory(false);
+    }
+  };
+
+  const handleDatePartChange = (part, value) => {
+    const cleanValue = value.replace(/\D/g, '');
+    const [y, m, d] = (newItem.purchase_date || '').split('-');
+    
+    let updatedYear = y || '';
+    let updatedMonth = m || '';
+    let updatedDay = d || '';
+
+    if (part === 'year') {
+      updatedYear = cleanValue.slice(0, 4);
+      if (updatedYear.length === 4) {
+        setTimeout(() => monthInputRef.current?.focus(), 10);
+      }
+    } else if (part === 'month') {
+      updatedMonth = cleanValue.slice(0, 2);
+      if (updatedMonth.length === 2) {
+        setTimeout(() => dayInputRef.current?.focus(), 10);
+      }
+    } else if (part === 'day') {
+      updatedDay = cleanValue.slice(0, 2);
+    }
+
+    setNewItem(prev => ({
+      ...prev,
+      purchase_date: `${updatedYear}-${updatedMonth}-${updatedDay}`
+    }));
+  };
+
+  const handleDatePartBlur = (part) => {
+    const [y, m, d] = (newItem.purchase_date || '').split('-');
+    let updatedYear = y || '';
+    let updatedMonth = m || '';
+    let updatedDay = d || '';
+
+    if (part === 'month' && updatedMonth) {
+      updatedMonth = updatedMonth.padStart(2, '0');
+    } else if (part === 'day' && updatedDay) {
+      updatedDay = updatedDay.padStart(2, '0');
+    }
+
+    setNewItem(prev => ({
+      ...prev,
+      purchase_date: `${updatedYear}-${updatedMonth}-${updatedDay}`
+    }));
   };
 
   const filteredItems = useMemo(() => {
@@ -1016,21 +1108,72 @@ function App() {
               <input required placeholder="名稱" value={newItem.name} onChange={e => setNewItem({...newItem, name: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
               <div className="grid grid-cols-2 gap-2">
                 <input placeholder="型號" value={newItem.model} onChange={e => setNewItem({...newItem, model: e.target.value})} className="h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
-                <select required value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none appearance-none" style={selectStyle}>
-                  <option value="">選擇分類</option>
-                  {sortedCategories.map((cat, idx) => <option key={idx}>{cat.name || Object.values(cat)[1]}</option>)}
-                </select>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">購買日期</label>
-                  <input type="date" value={newItem.purchase_date} onChange={e => setNewItem({...newItem, purchase_date: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">價格</label>
-                  <input type="number" placeholder="金額" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
+                <div className="flex gap-1">
+                  <select required value={newItem.category} onChange={e => setNewItem({...newItem, category: e.target.value})} className="flex-grow h-11 pl-4 pr-8 bg-gray-50 rounded-xl text-sm outline-none appearance-none min-w-0" style={selectStyle}>
+                    <option value="">選擇分類</option>
+                    {sortedCategories.map((cat, idx) => <option key={idx}>{cat.name || Object.values(cat)[1]}</option>)}
+                  </select>
+                  <button type="button" onClick={handleQuickAddCategory} disabled={isAddingCategory} className="w-11 h-11 flex-shrink-0 bg-indigo-50 hover:bg-indigo-100 disabled:opacity-50 text-indigo-600 rounded-xl flex items-center justify-center font-bold text-lg transition-all" title="快速新增分類">
+                    {isAddingCategory ? (
+                      <div className="w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    ) : "+"}
+                  </button>
                 </div>
               </div>
+              {(() => {
+                const [pYear, pMonth, pDay] = (newItem.purchase_date || '').split('-');
+                return (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">購買日期</label>
+                      <div className="flex items-center bg-gray-50 rounded-xl px-2 h-11 gap-1 border border-transparent focus-within:border-indigo-200 transition-colors">
+                        <input 
+                          ref={yearInputRef}
+                          type="text" 
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="年" 
+                          value={pYear || ''} 
+                          onChange={e => handleDatePartChange('year', e.target.value)} 
+                          onBlur={() => handleDatePartBlur('year')}
+                          className="w-12 bg-transparent text-center text-sm outline-none font-medium"
+                          maxLength={4}
+                        />
+                        <span className="text-gray-300 text-xs">/</span>
+                        <input 
+                          ref={monthInputRef}
+                          type="text" 
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="月" 
+                          value={pMonth || ''} 
+                          onChange={e => handleDatePartChange('month', e.target.value)} 
+                          onBlur={() => handleDatePartBlur('month')}
+                          className="w-8 bg-transparent text-center text-sm outline-none font-medium"
+                          maxLength={2}
+                        />
+                        <span className="text-gray-300 text-xs">/</span>
+                        <input 
+                          ref={dayInputRef}
+                          type="text" 
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          placeholder="日" 
+                          value={pDay || ''} 
+                          onChange={e => handleDatePartChange('day', e.target.value)} 
+                          onBlur={() => handleDatePartBlur('day')}
+                          className="w-8 bg-transparent text-center text-sm outline-none font-medium"
+                          maxLength={2}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-gray-400 uppercase ml-1">價格</label>
+                      <input type="number" placeholder="金額" value={newItem.price} onChange={e => setNewItem({...newItem, price: e.target.value})} className="w-full h-11 px-4 bg-gray-50 rounded-xl text-sm outline-none" />
+                    </div>
+                  </div>
+                );
+              })()}
               <div className="h-24 bg-gray-50 border-2 border-dashed rounded-xl flex items-center justify-center relative">
                 {newItem.thumbnail ? <img src={newItem.thumbnail} className="w-full h-full object-cover rounded-xl" /> : <span className="text-xs text-gray-300 font-bold">點擊上傳縮圖</span>}
                 <input type="file" accept="image/*" onChange={e => handleImageUpload(e, 'new')} className="absolute inset-0 opacity-0 cursor-pointer" />
