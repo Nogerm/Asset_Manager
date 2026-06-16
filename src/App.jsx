@@ -401,12 +401,22 @@ function App() {
     if (part === 'year') {
       updatedYear = cleanValue.slice(0, 4);
       if (updatedYear.length === 4) {
-        setTimeout(() => monthInputRef.current?.focus(), 10);
+        setTimeout(() => {
+          if (monthInputRef.current) {
+            monthInputRef.current.focus();
+            monthInputRef.current.select();
+          }
+        }, 10);
       }
     } else if (part === 'month') {
       updatedMonth = cleanValue.slice(0, 2);
       if (updatedMonth.length === 2) {
-        setTimeout(() => dayInputRef.current?.focus(), 10);
+        setTimeout(() => {
+          if (dayInputRef.current) {
+            dayInputRef.current.focus();
+            dayInputRef.current.select();
+          }
+        }, 10);
       }
     } else if (part === 'day') {
       updatedDay = cleanValue.slice(0, 2);
@@ -1136,6 +1146,7 @@ function App() {
                           value={pYear || ''} 
                           onChange={e => handleDatePartChange('year', e.target.value)} 
                           onBlur={() => handleDatePartBlur('year')}
+                          onFocus={e => e.target.select()}
                           className="w-12 bg-transparent text-center text-sm outline-none font-medium"
                           maxLength={4}
                         />
@@ -1149,6 +1160,7 @@ function App() {
                           value={pMonth || ''} 
                           onChange={e => handleDatePartChange('month', e.target.value)} 
                           onBlur={() => handleDatePartBlur('month')}
+                          onFocus={e => e.target.select()}
                           className="w-8 bg-transparent text-center text-sm outline-none font-medium"
                           maxLength={2}
                         />
@@ -1162,6 +1174,7 @@ function App() {
                           value={pDay || ''} 
                           onChange={e => handleDatePartChange('day', e.target.value)} 
                           onBlur={() => handleDatePartBlur('day')}
+                          onFocus={e => e.target.select()}
                           className="w-8 bg-transparent text-center text-sm outline-none font-medium"
                           maxLength={2}
                         />
